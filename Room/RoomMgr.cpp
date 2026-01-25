@@ -9,28 +9,42 @@ std::unordered_map<int, std::shared_ptr<Room>>();
 ReadWriteLock RoomMgr::_lock = ReadWriteLock();
 int RoomMgr::_roomIdInc = 0;
 
-RpcError RoomMgr::AddPlayerToRoom(std::shared_ptr<Player> p, int newRoomId)
+RpcError RoomMgr::AddPlayerToRoom(std::shared_ptr<Player> p, int roomId)
 {
 	if (p == nullptr) return RpcError::PLAYER_STATE_ERROR;
-	auto oldRoomId = p->GetRoom();
-	if (oldRoomId == newRoomId) return RpcError::ALREADY_IN_SELECTED_ROOM;
-	std::shared_ptr<Room> roomToExit = nullptr;
+	
+	// Check if already in this room
+	if (p->IsInRoom(roomId))
+		return RpcError::ALREADY_IN_SELECTED_ROOM;
+	
 	std::shared_ptr<Room> roomToJoin = nullptr;
 	{
 		auto rLock = _lock.OnRead();
-		if (_allRoomById.contains(oldRoomId))
-			roomToExit = _allRoomById[oldRoomId];
-		if (_allRoomById.contains(newRoomId))
-			roomToJoin = _allRoomById[newRoomId];
+		if (_allRoomById.contains(roomId))
+			roomToJoin = _allRoomById[roomId];
 	}
-	if (roomToExit != nullptr)
-		roomToExit->OnPlayerExit(p);
-	auto err = RpcError::SUCCESS;
-	if (roomToJoin != nullptr)
-		err = roomToJoin->OnPlayerJoin(p);
-	else
+	
+	if (roomToJoin == nullptr)
 		return RpcError::ROOM_NOT_EXIST;
-	return err;
+	
+	return roomToJoin->OnPlayerJoin(p);
+}
+RpcError RoomMgr::RemovePlayerFromRoom(std::shared_ptr<Player> p, int roomId)
+{
+	if (p == nullptr) return RpcError::PLAYER_STATE_ERROR;
+	
+	std::shared_ptr<Room> room = nullptr;
+	{
+		auto rLock = _lock.OnRead();
+		if (_allRoomById.contains(roomId))
+			room = _allRoomById[roomId];
+	}
+	
+	if (room == nullptr)
+		return RpcError::ROOM_NOT_EXIST;
+	
+	room->OnPlayerExit(p);
+	return RpcError::SUCCESS;
 }
 RpcError RoomMgr::CreateRoom(Room::RoomType type, std::shared_ptr<Room>& newRoom)
 {
@@ -96,18 +110,50 @@ void RoomMgr::WriteAllRoom(NetPack& pack)
 	for (const auto& room : mapCopy)
 		room.second->WriteRoom(pack);
 }
-RpcError RoomMgr::HandleNetPack(std::shared_ptr<Player> player, NetPack& pack)
+void RoomMgr::WritePlayerRooms(std::shared_ptr<Player> p, NetPack& pack)
+{
+	if (p == nullptr)
+	{
+		pack.WriteUInt32(0);
+		return;
+	}
+	
+	auto playerRooms = p->GetRooms();
+	std::vector<std::pair<int, Room::RoomType>> roomInfoList;
+	
+	{
+		auto rLock = _lock.OnRead();
+		for (int roomId : playerRooms)
+		{
+			if (_allRoomById.contains(roomId))
+			{
+				auto& room = _allRoomById[roomId];
+				roomInfoList.emplace_back(roomId, room->GetRoomType());
+			}
+		}
+	}
+	
+	pack.WriteUInt32((uint32_t)roomInfoList.size());
+	for (const auto& [roomId, roomType] : roomInfoList)
+	{
+		pack.WriteInt32(roomId);
+		pack.WriteUInt16(roomType);
+	}
+}
+RpcError RoomMgr::HandleNetPack(std::shared_ptr<Player> player, NetPack& pack, int roomId)
 {
 	if (player == nullptr) return RpcError::PLAYER_STATE_ERROR;
-	auto roomId = player->GetRoom();
+	
 	std::shared_ptr<Room> room = nullptr;
 	{
 		auto rLock = _lock.OnRead();
 		if (_allRoomById.contains(roomId))
 			room = _allRoomById[roomId];
 	}
+	
 	if (room == nullptr)
 		return RpcError::ROOM_NOT_EXIST;
+	
 	return room->OnRecvPlayerNetPack(player, pack);
 }
 std::unordered_map<int, std::shared_ptr<Room>> RoomMgr::GetAllRoom()

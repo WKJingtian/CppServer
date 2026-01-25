@@ -74,9 +74,11 @@ void Player::Delete(int errCode)
 	std::cout << "delete player(err " << errCode << ")" << std::endl;
 	m_info.WriteInfoToDatabase();
 	m_info.WriteAssetToDatabase();
-	RoomMgr::AddPlayerToRoom(m_selfPtr, -1);
+	
+	// Leave all rooms before cleanup
+	LeaveAllRooms();
+	
 	m_loggedIn = false;
-	m_room = -1;
 	m_selfPtr = nullptr;
 	
 	// Lock to ensure no send operations are in progress
@@ -107,12 +109,42 @@ bool Player::IsLoggedIn()
 RpcError Player::JoinRoom(int roomIdx)
 {
 	auto ret = RoomMgr::AddPlayerToRoom(m_selfPtr, roomIdx);
-	if (ret == RpcError::SUCCESS) m_room = roomIdx;
+	if (ret == RpcError::SUCCESS)
+	{
+		std::lock_guard<std::mutex> lock(m_roomsMutex);
+		m_rooms.insert(roomIdx);
+	}
 	return ret;
 }
-int Player::GetRoom()
+RpcError Player::LeaveRoom(int roomIdx)
 {
-	return m_room;
+	auto ret = RoomMgr::RemovePlayerFromRoom(m_selfPtr, roomIdx);
+	if (ret == RpcError::SUCCESS)
+	{
+		std::lock_guard<std::mutex> lock(m_roomsMutex);
+		m_rooms.erase(roomIdx);
+	}
+	return ret;
+}
+void Player::LeaveAllRooms()
+{
+	std::unordered_set<int> roomsCopy;
+	{
+		std::lock_guard<std::mutex> lock(m_roomsMutex);
+		roomsCopy = m_rooms;
+	}
+	for (int roomId : roomsCopy)
+		LeaveRoom(roomId);
+}
+std::unordered_set<int> Player::GetRooms()
+{
+	std::lock_guard<std::mutex> lock(m_roomsMutex);
+	return m_rooms;
+}
+bool Player::IsInRoom(int roomIdx)
+{
+	std::lock_guard<std::mutex> lock(m_roomsMutex);
+	return m_rooms.contains(roomIdx);
 }
 int Player::GetID()
 {

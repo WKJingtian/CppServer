@@ -26,9 +26,10 @@ protected:
 	bool _roomExpired = false;
 
 public:
-	int GetRoomID() const { return _roomId; }
+int GetRoomID() const { return _roomId; }
+RoomType GetRoomType() const { return _type; }
 
-	virtual void OnRoomCreated(int id);
+virtual void OnRoomCreated(int id);
 	virtual void OnRoomDestroy();
 	virtual void OnPlayerExit(std::shared_ptr<Player> player);
 	virtual RpcError OnRecvPlayerNetPack(std::shared_ptr<Player> player, NetPack& pack);

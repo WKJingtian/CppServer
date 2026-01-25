@@ -19,6 +19,8 @@ enum RpcEnum : std::uint16_t
 	rpc_server_print_user,
 	rpc_server_print_room,
 	rpc_server_goto_room,
+	rpc_server_leave_room,
+	rpc_server_get_my_rooms,
 	rpc_server_create_room,
 	rpc_server_refresh_user_info,
 
@@ -32,6 +34,8 @@ enum RpcEnum : std::uint16_t
 	rpc_client_print_user,
 	rpc_client_print_room,
 	rpc_client_goto_room,
+	rpc_client_leave_room,
+	rpc_client_get_my_rooms,
 	rpc_client_create_room,
 	rpc_client_refresh_user_info,
 

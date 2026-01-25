@@ -39,6 +39,7 @@ void Room::WriteRoom(NetPack& pack)
 		members = std::unordered_set<std::shared_ptr<Player>>(_members);
 	}
 	pack.WriteInt32(_roomId);
+	pack.WriteUInt16(_type);  // Write room type
 	pack.WriteUInt32((uint32_t)members.size());
 	for (const auto& p : members)
 		p->GetInfo().WriteInfo(pack);

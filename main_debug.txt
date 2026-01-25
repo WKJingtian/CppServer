@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 
 int main(int* args)
 {
@@ -109,7 +109,7 @@ int main(int* args)
 					pToDelete.insert(p);
 				else if (p)
 				{
-					if (p->GetRooms().empty())
+					if (auto playerRoomId = p->GetRoom(); playerRoomId == -1)
 					{
 						NetPack tickPack{ RpcEnum::rpc_server_tick };
 						TickInfoUtil::ConstructTickInfo(tickPack, TickInfoUtil::TICK_NOTHING, [](NetPack& pack) {});

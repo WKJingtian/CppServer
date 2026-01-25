@@ -5,6 +5,7 @@
 #include "PlayerInfo.h"
 #include <mutex>
 #include <atomic>
+#include <unordered_set>
 
 class NetPack;
 class CPPSERVER_API Player
@@ -13,7 +14,11 @@ class CPPSERVER_API Player
 	PlayerInfo m_info{};
 	std::thread m_recvThread;
 	std::atomic<bool> m_deleted{false};
-	int m_room = -1;
+	
+	// Multi-room support: set of room IDs the player is in
+	std::unordered_set<int> m_rooms{};
+	mutable std::mutex m_roomsMutex;
+	
 	bool m_loggedIn = false;
 	std::shared_ptr<Player> m_selfPtr = nullptr;
 	
@@ -36,8 +41,14 @@ public:
 	void SetInfo(PlayerInfo newInfo);
 
 	bool IsLoggedIn();
+	
+	// Multi-room support methods
 	RpcError JoinRoom(int roomIdx);
-	int GetRoom();
+	RpcError LeaveRoom(int roomIdx);
+	void LeaveAllRooms();
+	std::unordered_set<int> GetRooms();
+	bool IsInRoom(int roomIdx);
+	
 	int GetID();
 	std::string GetName();
 

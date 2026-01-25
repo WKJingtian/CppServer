@@ -104,6 +104,25 @@ int NetPackHandler::DoOneTask()
 			owner->Send(send);
 		}
 	}
+	else if (pack.MsgType() == RpcEnum::rpc_server_leave_room)
+	{
+		int roomIdx = pack.ReadInt32();
+		auto err = owner->LeaveRoom(roomIdx);
+		if (err != SUCCESS)
+			owner->SendError(err);
+		else
+		{
+			NetPack send{ RpcEnum::rpc_client_leave_room };
+			send.WriteInt32(roomIdx);
+			owner->Send(send);
+		}
+	}
+	else if (pack.MsgType() == RpcEnum::rpc_server_get_my_rooms)
+	{
+		NetPack send{ RpcEnum::rpc_client_get_my_rooms };
+		RoomMgr::WritePlayerRooms(owner, send);
+		owner->Send(send);
+	}
 	else if (pack.MsgType() == RpcEnum::rpc_server_create_room)
 	{
 		std::shared_ptr<Room> newRoom = nullptr;
@@ -126,7 +145,9 @@ int NetPackHandler::DoOneTask()
 		|| pack.MsgType() == RpcEnum::rpc_server_poker_standup
 		|| pack.MsgType() == RpcEnum::rpc_server_poker_set_blinds)
 	{
-		auto err = RoomMgr::HandleNetPack(owner, pack);
+		// Client must send target room ID first for multi-room support
+		int roomId = pack.ReadInt32();
+		auto err = RoomMgr::HandleNetPack(owner, pack, roomId);
 		owner->SendError(err);
 	}
 	else if (pack.MsgType() == RpcEnum::rpc_server_error_respond)
