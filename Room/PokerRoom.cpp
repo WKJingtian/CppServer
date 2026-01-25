@@ -73,6 +73,12 @@ RpcError PokerRoom::OnRecvPlayerNetPack(std::shared_ptr<Player> player, NetPack&
 	}
 }
 
+void PokerRoom::OnRoomCreated(int id)
+{
+	Room::OnRoomCreated(id);
+	_type = RoomType::POKER_ROOM;
+}
+
 void PokerRoom::OnTick()
 {
 	bool shouldBroadcastHandResult = false;

@@ -3,6 +3,7 @@
 ## General Guidelines
 - First general instruction
 - Second general instruction
+- Never use command line instructions (run_command_in_terminal) for this project. Always use file editing tools instead.
 
 ## Code Style
 - Use specific formatting rules

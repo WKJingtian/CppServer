@@ -45,6 +45,12 @@ RpcError ChatRoom::OnRecvPlayerNetPack(std::shared_ptr<Player> player, NetPack& 
 	}
 }
 
+void ChatRoom::OnRoomCreated(int id)
+{
+	Room::OnRoomCreated(id);
+    _type = RoomType::CHAT_ROOM;
+}
+
 void ChatRoom::OnTick()
 {
     std::vector<std::shared_ptr<Player>> toAdd;

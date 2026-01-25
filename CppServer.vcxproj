@@ -181,6 +181,7 @@
     <ClCompile Include="Player\PlayerUtils.cpp" />
     <ClCompile Include="Player\Player.cpp" />
     <ClCompile Include="Room\PokerRoom.cpp" />
+    <ClCompile Include="Utils\Utils.cpp" />
     <ClCompile Include="Utils\ReadWriteLock.cpp" />
     <ClCompile Include="Room\ChatRoom.cpp" />
     <ClCompile Include="main.cpp" />
@@ -208,6 +209,7 @@
     <ClInclude Include="Player\PlayerUtils.h" />
     <ClInclude Include="Player\PlayerMgr.h" />
     <ClInclude Include="Room\PokerRoom.h" />
+    <ClInclude Include="Utils\Utils.h" />
     <ClInclude Include="Utils\ReadWriteLock.h" />
     <ClInclude Include="Room\ChatRoom.h" />
     <ClInclude Include="DerelictCode.h" />

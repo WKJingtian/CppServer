@@ -6,11 +6,10 @@
 
 class PokerRoom : public Room
 {
-	RoomType _type = POKER_ROOM;
-
 public:
 	void OnPlayerExit(std::shared_ptr<Player> player) override;
 	RpcError OnRecvPlayerNetPack(std::shared_ptr<Player> player, NetPack& pack) override;
+	virtual void OnRoomCreated(int id);
 	void OnTick() override;
 
 private:

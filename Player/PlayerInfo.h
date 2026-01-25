@@ -1,5 +1,4 @@
 #pragma once
-#include "Const.h"
 #include "Utils/ReadWriteLock.h"
 #include <atomic>
 
@@ -53,11 +52,9 @@ public:
 	void WriteInfo(NetPack& dst);
 	void ReadInfo(NetPack& src);
 
-#ifdef IS_CPP_SERVER
-	PlayerInfo(const mysqlx::abi2::r0::Row& rowData);
+	PlayerInfo(mysqlx::abi2::r0::Row& rowData);
 	void WriteInfoToDatabase();
 	void WriteAssetToDatabase();
-#endif
 
 	friend Player;
 	friend PlayerMgr;

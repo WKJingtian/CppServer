@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "PlayerInfo.h"
 #include "PlayerUtils.h"
+#include "Const.h"
 
 PlayerInfo::PlayerInfo()
 	: m_id(-1), m_name(""), m_language(Language::English), m_chipCount(0)
@@ -120,14 +121,14 @@ void PlayerInfo::ReadInfo(NetPack& src)
 }
 
 #ifdef IS_CPP_SERVER
-PlayerInfo::PlayerInfo(const mysqlx::abi2::r0::Row& rowData)
+PlayerInfo::PlayerInfo(mysqlx::abi2::r0::Row& rowData)
 	: m_chipCount(0)
 {
 	auto wLock = m_lock.OnWrite();
-	m_id = static_cast<int>(rowData[0]);
-	m_name = static_cast<std::string>(rowData[1]);
-	m_language = (Language)(static_cast<int>(rowData[2]));
-	m_chipCount.store(static_cast<int>(rowData[3]));
+	m_id = rowData.get(2).get<int>();
+	m_name = rowData.get(0).get<std::string>();
+	m_language = (Language)rowData.get(1).get<int>();
+	m_chipCount.store(rowData.get(3).get<int>());
 }
 
 void PlayerInfo::WriteInfoToDatabase()
@@ -139,4 +140,8 @@ void PlayerInfo::WriteAssetToDatabase()
 {
 	PlayerUtils::WriteUserAssetChangeToDatabase(*this);
 }
+#else
+PlayerInfo::PlayerInfo(mysqlx::abi2::r0::Row& rowData) {}
+void PlayerInfo::WriteInfoToDatabase() {}
+void PlayerInfo::WriteAssetToDatabase() {}
 #endif

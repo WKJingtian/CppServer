@@ -3,7 +3,7 @@
 #include <functional>
 #include "Net/NetPack.h"
 
-static class TickInfoUtil
+class TickInfoUtil
 {
 public:
 	enum TickInfoType : uint16_t

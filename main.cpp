@@ -3,12 +3,13 @@
 int main(int* args)
 {
 	std::cout << "cpp server project start" << std::endl;
+	system("chcp 936");
 
 	auto sqlErrorCode = MySqlMgr::Init("127.0.0.1", 33060, "root", "1QAZ2wsx", "wkr_server_schema");
 	if (sqlErrorCode != EXIT_SUCCESS)
-		std::cerr << "MySQL test failed!" << std::endl;
+		std::cerr << "MySQL init failed!" << std::endl;
 	else
-		std::cout << "MySQL test succeded!" << std::endl;
+		std::cout << "MySQL init succeded!" << std::endl;
 
 	WSADATA wsaData;
 	int iResult;

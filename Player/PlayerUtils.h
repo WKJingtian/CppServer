@@ -4,7 +4,7 @@
 class Player;
 
 // not thread safe
-static class PlayerUtils
+class PlayerUtils
 {
 public:
 

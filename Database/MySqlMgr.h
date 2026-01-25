@@ -8,6 +8,7 @@
 #include <string>
 #include <functional>
 #include <sstream>
+#include <vector>
 
 class CPPSERVER_API MySqlMgr
 {
@@ -47,6 +48,7 @@ public:
 		const std::string& schema);
 
 	static void DoSql(const std::string& sqlCmd, std::function<void(mysqlx::SqlResult&&)> func);
+	static void DoSql(const std::vector<std::string>& sqlCmds, std::function<void(std::vector<mysqlx::SqlResult>&&)> func, bool enableLastIdReplace);
 	static void Select(const std::string& table, const std::string& columns, const std::string& where, std::function<void(mysqlx::SqlResult&&)> func);
 	static void Update(const std::string& table, const std::string& setClause, const std::string& where, std::function<void(mysqlx::SqlResult&&)> func);
 	static void Delete(const std::string& table, const std::string& where, std::function<void(mysqlx::SqlResult&&)> func);

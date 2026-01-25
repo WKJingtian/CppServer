@@ -23,16 +23,18 @@ std::string PlayerUtils::EscapeSqlString(const std::string& input)
 void PlayerUtils::CreateUserOnDatabase(std::string username, std::string password, std::shared_ptr<Player> owner)
 {
 	int defaultLanguage = (int)Language::English;
-	// ????????
 	std::string safeUsername = EscapeSqlString(username);
 	std::string safePassword = EscapeSqlString(password);
-	std::string insertCommand = std::format(CREATE_USER_ACCOUNT_SQL_CMD, safeUsername, safePassword, std::to_string(defaultLanguage), std::to_string(USER_ACCOUNT_START_CHIP));
-	MySqlMgr::DoSql(insertCommand, [username, owner, defaultLanguage](mysqlx::SqlResult&& res)
+	std::vector<std::string> insertCommand = std::vector<std::string>();
+	insertCommand.emplace_back(std::format(CREATE_USER_ACCOUNT_SQL_CMD, safeUsername, safePassword, std::to_string(defaultLanguage)));
+	insertCommand.emplace_back(std::format(CREATE_USER_ASSET_SQL_CMD, std::to_string(USER_ACCOUNT_START_CHIP)));
+	MySqlMgr::DoSql(insertCommand, [username, owner, defaultLanguage](std::vector<mysqlx::SqlResult>&& resultList)
 		{
 			// after creating user account, fetch the user info from database
+			auto& res = resultList[0];
 			auto id = static_cast<uint32_t>(res.getAutoIncrementValue());
 			std::string selectCols = "*";
-			MySqlMgr::Select("wkr_server_schema.v_user_info_with_asset", selectCols, "_id=" + std::to_string(id), [owner](mysqlx::SqlResult&& selectRes)
+			MySqlMgr::Select("`wkr_server_schema`.`v_user_info_with_asset`", selectCols, "_id=" + std::to_string(id), [owner](mysqlx::SqlResult&& selectRes)
 				{
 					RpcError err = RpcError::REGISTER_FAILED;
 					auto row = selectRes.fetchOne();
@@ -50,17 +52,29 @@ void PlayerUtils::CreateUserOnDatabase(std::string username, std::string passwor
 					}
 					owner->SendError(err);
 				});
-		});
+		}, true);
 }
 
 void PlayerUtils::UserLogin(int id, std::string password, std::shared_ptr<Player> owner)
 {
 	std::erase(password, '\0');
-	// ??????SQL??
 	std::string safePassword = EscapeSqlString(password);
-	std::string where = "_id=" + std::to_string(id) + " AND pswd='" + safePassword + "'";
-	std::string selectCols = "*";
-	MySqlMgr::Select("wkr_server_schema.v_user_info_with_asset", selectCols, where, [owner, id](mysqlx::SqlResult&& result)
+	std::string where = "`_id`=" + std::to_string(id) + " AND `pswd`='" + safePassword + "'";
+	std::string selectCols = "_id";
+	bool pswdCorrect = false;
+	MySqlMgr::Select("`wkr_server_schema`.`user`", selectCols, where, [owner, id, &pswdCorrect](mysqlx::SqlResult&& result)
+		{
+			auto row = result.fetchOne();
+			if (!row.isNull())
+			{
+				pswdCorrect = true;
+			}
+			else
+				owner->SendError(RpcError::WRONG_PASSWORD);
+		});
+	if (!pswdCorrect) return;
+
+	MySqlMgr::Select("`wkr_server_schema`.`v_user_info_with_asset`", "*", "`_id`=" + std::to_string(id), [owner, id](mysqlx::SqlResult&& result)
 		{
 			auto row = result.fetchOne();
 			if (!row.isNull())
@@ -77,7 +91,7 @@ void PlayerUtils::UserLogin(int id, std::string password, std::shared_ptr<Player
 					owner->SendError(logInError);
 			}
 			else
-				owner->SendError(RpcError::WRONG_PASSWORD);
+				owner->SendError(RpcError::SQL_COMMAND_FAILED);
 		});
 }
 
@@ -85,7 +99,7 @@ void PlayerUtils::FetchUserInfoFromDatabase(std::shared_ptr<Player> owner)
 {
 	auto id = owner->GetID();
 	std::string selectCols = "*";
-	MySqlMgr::Select("wkr_server_schema.v_user_info_with_asset", selectCols, "_id=" + std::to_string(id), [owner](mysqlx::SqlResult&& selectRes)
+	MySqlMgr::Select("`wkr_server_schema`.`v_user_info_with_asset`", selectCols, "_id=" + std::to_string(id), [owner](mysqlx::SqlResult&& selectRes)
 		{
 			auto row = selectRes.fetchOne();
 			if (!row.isNull())
@@ -97,7 +111,7 @@ void PlayerUtils::FetchUserInfoFromDatabase(std::shared_ptr<Player> owner)
 				owner->Send(send);
 			}
 			else
-				owner->SendError(RpcError::SQL_CONNABD_FAILED);
+				owner->SendError(RpcError::SQL_COMMAND_FAILED);
 		});
 }
 
@@ -116,14 +130,13 @@ void PlayerUtils::UpdateUserAssetFromDatabase(std::shared_ptr<Player> owner)
 				owner->Send(send);
 			}
 			else
-				owner->SendError(RpcError::SQL_CONNABD_FAILED);
+				owner->SendError(RpcError::SQL_COMMAND_FAILED);
 		});
 }
 
 void PlayerUtils::WriteUserInfoChangeToDatabase(const PlayerInfo& info)
 {
 	auto id = info.GetID();
-	// ???_name?????
 	std::string safeName = EscapeSqlString(info.GetName());
 	std::string sqlCmd = std::format("UPDATE wkr_server_schema.user SET _name='{}',lang={} WHERE _id={};",
 		safeName, std::to_string((int)info.GetLanguage()), std::to_string(id));
@@ -140,20 +153,15 @@ void PlayerUtils::WriteUserAssetChangeToDatabase(const PlayerInfo& info)
 
 void PlayerUtils::AddChipsToDatabase(int playerId, int delta, std::function<void(bool)> callback)
 {
-	// ??????????????????
-	// ?????delta < 0???? chip + delta >= 0
-	// ?????delta >= 0??????
 	std::string sqlCmd;
 	if (delta < 0)
 	{
-		// ?????????
 		sqlCmd = std::format(
 			"UPDATE wkr_server_schema.user_asset SET chip = chip + {} WHERE _id = {} AND chip >= {};",
 			delta, playerId, -delta);
 	}
 	else
 	{
-		// ??????
 		sqlCmd = std::format(
 			"UPDATE wkr_server_schema.user_asset SET chip = chip + {} WHERE _id = {};",
 			delta, playerId);
@@ -161,7 +169,6 @@ void PlayerUtils::AddChipsToDatabase(int playerId, int delta, std::function<void
 
 	MySqlMgr::DoSql(sqlCmd, [callback, delta](mysqlx::SqlResult&& res)
 		{
-			// ?????????0??????????????????
 			auto affectedRows = res.getAffectedItemsCount();
 			bool success = (affectedRows > 0);
 			if (callback)

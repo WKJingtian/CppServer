@@ -18,8 +18,6 @@
 #include <set>
 #include <map>
 
-#include "Const.h"
-
 #include "mysql/include/jdbc/mysql_connection.h"
 #include "mysql/include/mysql/jdbc.h"
 #include "mysql/include/mysqlx/xdevapi.h"
