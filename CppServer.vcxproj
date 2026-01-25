@@ -175,6 +175,10 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Game\GameItem\Card.cpp" />
+    <ClCompile Include="Game\GameItem\Seat.cpp" />
+    <ClCompile Include="Game\HoldemPokerGame.cpp" />
+    <ClCompile Include="Player\PlayerUtils.cpp" />
     <ClCompile Include="Player\Player.cpp" />
     <ClCompile Include="Room\PokerRoom.cpp" />
     <ClCompile Include="Utils\ReadWriteLock.cpp" />
@@ -190,9 +194,18 @@
     <ClCompile Include="Utils\ThreadPool.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Const.h" />
     <ClInclude Include="CppServerAPI.h" />
     <ClInclude Include="Database\MySqlMgr.h" />
+    <ClInclude Include="Game\GameItem\Card.h" />
+    <ClInclude Include="Game\GameItem\Deck.h" />
+    <ClInclude Include="Game\GameItem\HandEvaluator.h" />
+    <ClInclude Include="Game\GameItem\Seat.h" />
+    <ClInclude Include="Game\HoldemPokerGame.h" />
     <ClInclude Include="Net\NetPackHandler.h" />
+    <ClInclude Include="Player\Player.h" />
+    <ClInclude Include="Player\PlayerInfo.h" />
+    <ClInclude Include="Player\PlayerUtils.h" />
     <ClInclude Include="Player\PlayerMgr.h" />
     <ClInclude Include="Room\PokerRoom.h" />
     <ClInclude Include="Utils\ReadWriteLock.h" />
@@ -202,14 +215,13 @@
     <ClInclude Include="Net\RpcEnum.h" />
     <ClInclude Include="Net\NetPack.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="Player\PlayerInfo.h" />
-    <ClInclude Include="Player\Player.h" />
     <ClInclude Include="Room\Room.h" />
     <ClInclude Include="Room\RoomMgr.h" />
     <ClInclude Include="Utils\ThreadPool.h" />
     <ClInclude Include="Utils\TickInfoUtil.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include=".github\copilot-instructions.md" />
     <None Include="Dependencies\libcrypto-3-x64.dll" />
     <None Include="Dependencies\libssl-3-x64.dll" />
     <None Include="Dependencies\mysqlcppconn-10-vs14.dll" />

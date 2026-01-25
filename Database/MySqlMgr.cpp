@@ -87,6 +87,28 @@ int MySqlMgr::Init(
 	return EXIT_SUCCESS;
 }
 
+void MySqlMgr::DoSql(const std::string& sqlCmd, std::function<void(mysqlx::SqlResult&&)> func)
+{
+	mysqlx::SqlResult result;
+	try
+	{
+		auto& db = Instance();
+		auto lock = db._lock.OnWrite();
+		db.EnsureConnection();
+
+		result = db._sqlSession->sql(sqlCmd).execute();
+	}
+	catch (const mysqlx::Error& e)
+	{
+		std::cout << "MYSQL ERROR: " << e << std::endl;
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "STD ERROR: " << e.what() << std::endl;
+	}
+	func(std::move(result));
+}
+
 void MySqlMgr::Select(const std::string& table, const std::string& columns, const std::string& where, std::function<void(mysqlx::SqlResult&&)> func)
 {
 	mysqlx::SqlResult result;

@@ -51,7 +51,16 @@
     <ClCompile Include="Player\Player.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Game\GameItem\Card.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\GameItem\Seat.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="Room\PokerRoom.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Player\PlayerUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -65,16 +74,10 @@
     <ClInclude Include="Net\NetPack.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Player\Player.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Net\RpcEnum.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DerelictCode.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Player\PlayerInfo.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Room\RoomMgr.h">
@@ -104,10 +107,37 @@
     <ClInclude Include="Net\NetPackHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Utils\TickInfoUtil.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\GameItem\Card.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\GameItem\Deck.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\GameItem\Seat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\GameItem\HandEvaluator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="Room\PokerRoom.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Utils\TickInfoUtil.h">
+    <ClInclude Include="Const.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Player\PlayerUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Player\PlayerInfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Player\Player.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\HoldemPokerGame.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -118,5 +148,6 @@
     <None Include="Dependencies\mysqlcppconn-10-vs14.dll" />
     <None Include="Dependencies\mysqlcppconn-10-vs14.pdb" />
     <None Include="Dependencies\mysqlcppconnx-2-vs14.dll" />
+    <None Include=".github\copilot-instructions.md" />
   </ItemGroup>
 </Project>

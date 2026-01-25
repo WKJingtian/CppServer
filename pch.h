@@ -18,9 +18,17 @@
 #include <set>
 #include <map>
 
+#include "Const.h"
+
+#include "mysql/include/jdbc/mysql_connection.h"
+#include "mysql/include/mysql/jdbc.h"
+#include "mysql/include/mysqlx/xdevapi.h"
+
 #include "Utils/ThreadPool.h"
 #include "Utils/ReadWriteLock.h"
 #include "Utils/TickInfoUtil.h"
+
+#include "Database/MySqlMgr.h"
 
 #include "Room/RoomMgr.h"
 
@@ -31,12 +39,6 @@
 #include "Net/NetPackHandler.h"
 #include "Net/RpcEnum.h"
 #include "Net/RpcError.h"
-
-#include "Database/MySqlMgr.h"
-
-#include "mysql/include/jdbc/mysql_connection.h"
-#include "mysql/include/mysql/jdbc.h"
-#include "mysql/include/mysqlx/xdevapi.h"
 
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #ifndef WIN32_LEAN_AND_MEAN

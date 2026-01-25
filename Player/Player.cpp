@@ -11,7 +11,7 @@ Player::Player(SOCKET&& socket) :
 }
 Player::~Player()
 {
-	if (m_deleted) return;
+	if (m_deleted.load()) return;
 	Delete();
 }
 void Player::RecvJob()
@@ -29,7 +29,7 @@ void Player::RecvJob()
 		}
 		else
 			break;
-	} while (iResult > 0 && !m_deleted);
+	} while (iResult > 0 && !m_deleted.load());
 	m_recvThread.detach();
 }
 void Player::OnRecv(NetPack&& pack)
@@ -39,6 +39,11 @@ void Player::OnRecv(NetPack&& pack)
 void Player::Send(NetPack& pack)
 {
 	if (Expired()) return;
+	
+	std::lock_guard<std::mutex> lock(m_sendMutex);
+	// Double-check after acquiring lock
+	if (m_deleted.load()) return;
+	
 	auto iSendResult = send(m_socket, pack.GetContent(), (int)pack.Length(), 0);
 	if (iSendResult == SOCKET_ERROR)
 		Delete(iSendResult * 100);
@@ -61,24 +66,39 @@ void Player::SendError(RpcError err)
 }
 void Player::Delete(int errCode)
 {
-	if (m_deleted) return;
-	m_deleted = true;
+	// Use compare_exchange to ensure only one thread enters
+	bool expected = false;
+	if (!m_deleted.compare_exchange_strong(expected, true))
+		return;
+	
 	std::cout << "delete player(err " << errCode << ")" << std::endl;
+	m_info.WriteInfoToDatabase();
+	m_info.WriteAssetToDatabase();
 	RoomMgr::AddPlayerToRoom(m_selfPtr, -1);
 	m_loggedIn = false;
 	m_room = -1;
 	m_selfPtr = nullptr;
+	
+	// Lock to ensure no send operations are in progress
+	{
+		std::lock_guard<std::mutex> lock(m_sendMutex);
+		shutdown(m_socket, SD_SEND);
+		closesocket(m_socket);
+	}
+	
 	if (m_recvThread.joinable()) m_recvThread.join();
-	shutdown(m_socket, SD_SEND);
-	closesocket(m_socket);
 }
 bool Player::Expired()
 {
-	return m_deleted || !m_recvThread.joinable();
+	return m_deleted.load() || !m_recvThread.joinable();
 }
 PlayerInfo& Player::GetInfo()
 {
 	return m_info;
+}
+void Player::SetInfo(PlayerInfo newInfo)
+{
+	m_info = newInfo;
 }
 bool Player::IsLoggedIn()
 {
@@ -96,9 +116,9 @@ int Player::GetRoom()
 }
 int Player::GetID()
 {
-	return m_info.m_id;
+	return m_info.GetID();
 }
 std::string Player::GetName()
 {
-	return m_info.m_name;
+	return m_info.GetName();
 }

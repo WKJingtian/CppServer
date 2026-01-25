@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "NetPackHandler.h"
+#include "Player/PlayerUtils.h"
 
 NetTask::NetTask(std::shared_ptr<Player> owner, NetPack& pack)
 	: m_taskOwner(owner), m_taskPack(std::move(pack))
@@ -51,31 +52,7 @@ int NetPackHandler::DoOneTask()
 			owner->SendError(RpcError::USER_ALREADY_LOGGED_IN);
 		UINT32 id = pack.ReadUInt32();
 		std::string pwd = pack.ReadString();
-		std::erase(pwd, '\0');
-		std::string where = "_id=" + std::to_string(id) + " AND pswd=\"" + pwd + "\"";
-		std::string selectCols = "_name, lang";
-		MySqlMgr::Select("wkr_server_schema.user", selectCols, where, [&owner, id](mysqlx::SqlResult&& result)
-			{
-				auto row = result.fetchOne();
-				if (!row.isNull())
-				{
-					auto nickname = row.get(0).get<std::string>();
-					auto language = row.get(1).get<int>();
-					auto error = (RpcError)PlayerMgr::OnPlayerLoggedIn(owner, PlayerInfo(id, nickname, language));
-					if (error == SUCCESS)
-					{
-						NetPack send{ RpcEnum::rpc_client_log_in };
-						send.WriteUInt32(id);
-						send.WriteString(nickname);
-						send.WriteUInt32(language);
-						owner->Send(send);
-					}
-					else
-						owner->SendError(error);
-				}
-				else
-					owner->SendError(RpcError::WRONG_PASSWORD);
-			});
+		PlayerUtils::UserLogin(id, pwd, owner);
 	}
 	else if (pack.MsgType() == RpcEnum::rpc_server_register)
 	{
@@ -83,43 +60,7 @@ int NetPackHandler::DoOneTask()
 			owner->SendError(RpcError::USER_ALREADY_LOGGED_IN);
 		std::string name = pack.ReadString();
 		std::string pwd = pack.ReadString();
-		std::string values = "\"" + name + "\", \"" + pwd + "\", 0";
-		std::string insertCols = "_name, pswd, lang";
-		MySqlMgr::Upsert("user", insertCols, values, "", [&owner, name](mysqlx::SqlResult&& res)
-			{
-				auto affected = res.getAffectedItemsCount();
-				if (affected == 0)
-				{
-					owner->SendError(RpcError::REGISTER_FAILED);
-					return;
-				}
-				auto id = static_cast<uint32_t>(res.getAutoIncrementValue());
-				if (id == 0)
-				{
-					owner->SendError(RpcError::REGISTER_FAILED);
-					return;
-				}
-				std::string selectCols = "*";
-				MySqlMgr::Select("user", selectCols, "_id=" + std::to_string(id), [&owner, name, id](mysqlx::SqlResult&& result)
-					{
-						RpcError err = RpcError::REGISTER_FAILED;
-						auto row = result.fetchOne();
-						if (!row.isNull())
-						{
-							auto error = (RpcError)PlayerMgr::OnPlayerLoggedIn(owner, PlayerInfo(id, name, 0));
-							err = error;
-							if (error == SUCCESS)
-							{
-								NetPack send{ RpcEnum::rpc_client_log_in };
-								send.WriteUInt32(id);
-								send.WriteString(name);
-								send.WriteUInt32(0);
-								owner->Send(send);
-							}
-						}
-						owner->SendError(err);
-					});
-			});
+		PlayerUtils::CreateUserOnDatabase(name, pwd, owner);
 	}
 	else if (pack.MsgType() == RpcEnum::rpc_server_print_room)
 	{
@@ -137,7 +78,6 @@ int NetPackHandler::DoOneTask()
 	{
 		owner->SendError(RpcError::NOT_LOGGED_IN);
 	}
-	// todo: push change to database
 	else if (pack.MsgType() == RpcEnum::rpc_server_set_name)
 	{
 		owner->GetInfo().SetName(pack.ReadString());
@@ -181,7 +121,10 @@ int NetPackHandler::DoOneTask()
 	else if (pack.MsgType() == RpcEnum::rpc_server_send_text
 		|| pack.MsgType() == RpcEnum::rpc_server_get_poker_table_info
 		|| pack.MsgType() == RpcEnum::rpc_server_sit_down
-		|| pack.MsgType() == RpcEnum::rpc_server_poker_action)
+		|| pack.MsgType() == RpcEnum::rpc_server_poker_action
+		|| pack.MsgType() == RpcEnum::rpc_server_poker_buyin
+		|| pack.MsgType() == RpcEnum::rpc_server_poker_standup
+		|| pack.MsgType() == RpcEnum::rpc_server_poker_set_blinds)
 	{
 		auto err = RoomMgr::HandleNetPack(owner, pack);
 		owner->SendError(err);

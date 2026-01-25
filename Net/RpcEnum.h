@@ -20,6 +20,7 @@ enum RpcEnum : std::uint16_t
 	rpc_server_print_room,
 	rpc_server_goto_room,
 	rpc_server_create_room,
+	rpc_server_refresh_user_info,
 
 	rpc_client_tick,
 	rpc_client_error_respond,
@@ -32,6 +33,7 @@ enum RpcEnum : std::uint16_t
 	rpc_client_print_room,
 	rpc_client_goto_room,
 	rpc_client_create_room,
+	rpc_client_refresh_user_info,
 
 	// poker room rpc
 	rpc_server_get_poker_table_info,
@@ -40,6 +42,12 @@ enum RpcEnum : std::uint16_t
 	rpc_client_sit_down,
 	rpc_server_poker_action,
 	rpc_client_poker_hand_result,
+	rpc_server_poker_buyin,
+	rpc_client_poker_buyin,
+	rpc_server_poker_standup,
+	rpc_client_poker_standup,
+	rpc_server_poker_set_blinds,
+	rpc_client_poker_set_blinds,
 
 	INVALID,
 };
