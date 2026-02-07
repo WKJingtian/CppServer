@@ -38,6 +38,8 @@
 #include "Net/RpcEnum.h"
 #include "Net/RpcError.h"
 
+#include "Config/LuaConfigLoader.h"
+
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN

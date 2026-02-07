@@ -103,6 +103,7 @@
     </Link>
     <PostBuildEvent>
       <Command>xcopy /y /d "$(SolutionDir)Dependencies\*" "$(OutDir)"</Command>
+      <Command>xcopy /y /d /i /e "$(ProjectDir)LuaScript" "$(OutDir)LuaScript"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -128,6 +129,7 @@
     </Link>
     <PostBuildEvent>
       <Command>xcopy /y /d "$(SolutionDir)Dependencies\*" "$(OutDir)"</Command>
+      <Command>xcopy /y /d /i /e "$(ProjectDir)LuaScript" "$(OutDir)LuaScript"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -147,6 +149,7 @@
     </Link>
     <PostBuildEvent>
       <Command>xcopy /y /d "$(SolutionDir)Dependencies\*" "$(OutDir)"</Command>
+      <Command>xcopy /y /d /i /e "$(ProjectDir)LuaScript" "$(OutDir)LuaScript"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -167,14 +170,16 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)ThirdParty\mysql\lib64\vs14\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>mysqlcppconn.lib;libcrypto.lib;libssl.lib;mysqlcppconnx.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)ThirdParty\mysql\lib64\vs14\;$(ProjectDir)ThirdParty\lua\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>mysqlcppconn.lib;libcrypto.lib;libssl.lib;mysqlcppconnx.lib;lua55.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /y /d "$(SolutionDir)Dependencies\*" "$(OutDir)"</Command>
+      <Command>xcopy /y /d /i /e "$(ProjectDir)LuaScript" "$(OutDir)LuaScript"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Config\LuaConfigLoader.cpp" />
     <ClCompile Include="Game\GameItem\Card.cpp" />
     <ClCompile Include="Game\GameItem\Seat.cpp" />
     <ClCompile Include="Game\HoldemPokerGame.cpp" />
@@ -195,6 +200,7 @@
     <ClCompile Include="Utils\ThreadPool.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Config\LuaConfigLoader.h" />
     <ClInclude Include="Const.h" />
     <ClInclude Include="CppServerAPI.h" />
     <ClInclude Include="Database\MySqlMgr.h" />
@@ -230,6 +236,13 @@
     <None Include="Dependencies\mysqlcppconn-10-vs14.pdb" />
     <None Include="Dependencies\mysqlcppconnx-2-vs14.dll" />
     <None Include="Dependencies\mysqlcppconnx-2-vs14.pdb" />
+    <None Include="LuaScript\Config.lua" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="LuaScript\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="run_with_log.bat" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

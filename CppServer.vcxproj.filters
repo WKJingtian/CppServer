@@ -15,6 +15,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Config\LuaConfigLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -71,6 +74,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Config\LuaConfigLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -158,5 +164,6 @@
     <None Include="Dependencies\mysqlcppconn-10-vs14.pdb" />
     <None Include="Dependencies\mysqlcppconnx-2-vs14.dll" />
     <None Include=".github\copilot-instructions.md" />
+    <None Include="LuaScript\Config.lua" />
   </ItemGroup>
 </Project>
