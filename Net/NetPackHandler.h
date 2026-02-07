@@ -16,8 +16,8 @@ class CPPSERVER_API NetPackHandler
 {
 	static NetPackHandler& Instance();
 
-	std::queue<NetTask> _taskList;
-	std::mutex _mutex;
+	std::queue<NetTask> _taskList{};
+	std::mutex _mutex{};
 
 	NetPackHandler();
 	~NetPackHandler();

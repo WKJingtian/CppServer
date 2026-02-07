@@ -16,6 +16,10 @@ Player::~Player()
 }
 void Player::RecvJob()
 {
+	std::vector<uint8_t> pending;
+	pending.reserve(NET_PACK_MAX_LEN * 2);
+	bool disconnect = false;
+
 	char recvbuf[NET_PACK_MAX_LEN];
 	int recvbuflen = NET_PACK_MAX_LEN;
 	int iResult;
@@ -24,13 +28,55 @@ void Player::RecvJob()
 		iResult = recv(m_socket, recvbuf, recvbuflen, 0);
 		if (iResult > 0)
 		{
-			NetPack pack = NetPack((uint8_t*)recvbuf);
-			OnRecv(std::move(pack));
+			auto* begin = reinterpret_cast<uint8_t*>(recvbuf);
+			pending.insert(pending.end(), begin, begin + iResult);
+
+			size_t offset = 0;
+			while (pending.size() - offset >= 4)
+			{
+				uint16_t packetSize = 0;
+				std::memcpy(&packetSize, pending.data() + offset + 2, sizeof(packetSize));
+				if (packetSize < 4 || packetSize > NET_PACK_MAX_LEN)
+				{
+					std::cout << "Invalid packet size: " << packetSize << ", disconnecting." << std::endl;
+					disconnect = true;
+					break;
+				}
+				if (pending.size() - offset < packetSize)
+					break;
+
+				NetPack pack = NetPack(pending.data() + offset);
+				if (pack.MsgType() == RpcEnum::INVALID || pack.Length() < 4)
+				{
+					std::cout << "Invalid packet content, disconnecting." << std::endl;
+					disconnect = true;
+					break;
+				}
+				OnRecv(std::move(pack));
+				offset += packetSize;
+			}
+
+			if (disconnect)
+			{
+				std::lock_guard<std::mutex> lock(m_sendMutex);
+				shutdown(m_socket, SD_SEND);
+				closesocket(m_socket);
+				iResult = 0;
+				break;
+			}
+
+			if (offset > 0)
+			{
+				size_t remaining = pending.size() - offset;
+				if (remaining > 0)
+					std::memmove(pending.data(), pending.data() + offset, remaining);
+				pending.resize(remaining);
+			}
 		}
 		else
 			break;
 	} while (iResult > 0 && !m_deleted.load());
-	m_recvThread.detach();
+	m_recvEnded.store(true);
 }
 void Player::OnRecv(NetPack&& pack)
 {
@@ -88,11 +134,17 @@ void Player::Delete(int errCode)
 		closesocket(m_socket);
 	}
 	
-	if (m_recvThread.joinable()) m_recvThread.join();
+	if (m_recvThread.joinable())
+	{
+		if (m_recvThread.get_id() == std::this_thread::get_id())
+			m_recvThread.detach();
+		else
+			m_recvThread.join();
+	}
 }
 bool Player::Expired()
 {
-	return m_deleted.load() || !m_recvThread.joinable();
+	return m_deleted.load() || m_recvEnded.load();
 }
 PlayerInfo& Player::GetInfo()
 {

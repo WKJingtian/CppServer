@@ -36,10 +36,12 @@ int NetPackHandler::DoOneTask()
 	{
 		std::unique_lock<std::mutex> lock(handler._mutex);
 		if (handler._taskList.size() == 0)
+		{
 			return 1; // no task to do
-		NetTask& task = handler._taskList.front();
+		}
+		NetTask task = std::move(handler._taskList.front());
 		handler._taskList.pop();
-		owner = task.m_taskOwner;
+		owner = std::move(task.m_taskOwner);
 		pack = std::move(task.m_taskPack);
 	}
 

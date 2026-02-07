@@ -1,6 +1,6 @@
 #include "pch.h"
 
-int main(int* args)
+int main(int argc, char** argv)
 {
 	std::cout << "cpp server project start" << std::endl;
 

@@ -14,6 +14,7 @@ class CPPSERVER_API Player
 	PlayerInfo m_info{};
 	std::thread m_recvThread;
 	std::atomic<bool> m_deleted{false};
+	std::atomic<bool> m_recvEnded{false};
 	
 	// Multi-room support: set of room IDs the player is in
 	std::unordered_set<int> m_rooms{};

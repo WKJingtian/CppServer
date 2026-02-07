@@ -1,5 +1,19 @@
 #include "pch.h"
 #include "NetPack.h"
+#include <limits>
+
+namespace
+{
+	bool CheckWrite(size_t current, size_t add, const char* name)
+	{
+		if (current + add > NET_PACK_MAX_LEN)
+		{
+			std::cout << "NetPack overflow in " << name << std::endl;
+			return false;
+		}
+		return true;
+	}
+}
 
 NetPack::NetPack(RpcEnum typ)
 {
@@ -11,11 +25,24 @@ NetPack::NetPack(RpcEnum typ)
 }
 NetPack::NetPack(uint8_t* stream)
 {
-	std::memcpy(&m_enumType, stream, 2);
-	std::memcpy(&m_size, stream + 2, 2);
-	assert(m_enumType < RpcEnum::INVALID);
-	std::memcpy(m_content, stream, m_size);
+	uint16_t rawType = 0;
+	uint16_t rawSize = 0;
+	std::memcpy(&rawType, stream, sizeof(rawType));
+	std::memcpy(&rawSize, stream + 2, sizeof(rawSize));
+
+	m_enumType = static_cast<RpcEnum>(rawType);
+	m_size = rawSize;
 	m_readPos = 4;
+
+	if (m_enumType >= RpcEnum::INVALID || m_size < 4 || m_size > NET_PACK_MAX_LEN)
+	{
+		m_enumType = RpcEnum::INVALID;
+		m_size = 0;
+		m_readPos = 0;
+		return;
+	}
+
+	std::memcpy(m_content, stream, m_size);
 }
 NetPack::NetPack(NetPack&& src) noexcept
 {
@@ -115,58 +142,71 @@ uint32_t NetPack::ReadUInt32()
 //write
 void NetPack::WriteFloat(float val, int atPos)
 {
-	assert(m_size + 4 <= NET_PACK_MAX_LEN);
+	if (!CheckWrite(m_size, 4, "WriteFloat"))
+		return;
 	std::memcpy(m_content + m_size, &val, 4);
 	m_size += 4;
 	std::memcpy(m_content + 2, &m_size, 2);
 }
 void NetPack::WriteString(std::string val, int atPos)
 {
-	uint16_t strlen = (uint16_t)val.length() + 1;
-	WriteUInt16(strlen);
-	assert(m_size + strlen <= NET_PACK_MAX_LEN);
-	std::memcpy(m_content + m_size, val.c_str(), strlen);
-	m_size += strlen;
+	size_t bytes = val.length() + 1;
+	if (bytes > std::numeric_limits<uint16_t>::max())
+	{
+		std::cout << "NetPack string too long" << std::endl;
+		return;
+	}
+	if (!CheckWrite(m_size, 2 + bytes, "WriteString"))
+		return;
+	WriteUInt16(static_cast<uint16_t>(bytes));
+	std::memcpy(m_content + m_size, val.c_str(), bytes);
+	m_size += bytes;
 	std::memcpy(m_content + 2, &m_size, 2);
 }
 void NetPack::WriteInt8(int8_t val, int atPos)
 {
-	assert(m_size + 1 <= NET_PACK_MAX_LEN);
+	if (!CheckWrite(m_size, 1, "WriteInt8"))
+		return;
 	std::memcpy(m_content + m_size, &val, 1);
 	m_size += 1;
 	std::memcpy(m_content + 2, &m_size, 2);
 }
 void NetPack::WriteInt16(int16_t val, int atPos)
 {
-	assert(m_size + 2 <= NET_PACK_MAX_LEN);
+	if (!CheckWrite(m_size, 2, "WriteInt16"))
+		return;
 	std::memcpy(m_content + m_size, &val, 2);
 	m_size += 2;
 	std::memcpy(m_content + 2, &m_size, 2);
 }
 void NetPack::WriteInt32(int32_t val, int atPos)
 {
-	assert(m_size + 4 <= NET_PACK_MAX_LEN);
+	if (!CheckWrite(m_size, 4, "WriteInt32"))
+		return;
 	std::memcpy(m_content + m_size, &val, 4);
 	m_size += 4;
 	std::memcpy(m_content + 2, &m_size, 2);
 }
 void NetPack::WriteUInt8(uint8_t val, int atPos)
 {
-	assert(m_size + 1 <= NET_PACK_MAX_LEN);
+	if (!CheckWrite(m_size, 1, "WriteUInt8"))
+		return;
 	std::memcpy(m_content + m_size, &val, 1);
 	m_size += 1;
 	std::memcpy(m_content + 2, &m_size, 2);
 }
 void NetPack::WriteUInt16(uint16_t val, int atPos)
 {
-	assert(m_size + 2 <= NET_PACK_MAX_LEN);
+	if (!CheckWrite(m_size, 2, "WriteUInt16"))
+		return;
 	std::memcpy(m_content + m_size, &val, 2);
 	m_size += 2;
 	std::memcpy(m_content + 2, &m_size, 2);
 }
 void NetPack::WriteUInt32(uint32_t val, int atPos)
 {
-	assert(m_size + 4 <= NET_PACK_MAX_LEN);
+	if (!CheckWrite(m_size, 4, "WriteUInt32"))
+		return;
 	std::memcpy(m_content + m_size, &val, 4);
 	m_size += 4;
 	std::memcpy(m_content + 2, &m_size, 2);
