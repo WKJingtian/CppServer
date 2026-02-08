@@ -2,20 +2,14 @@
 #include "ChatRoom.h"
 #include <algorithm>
 
+ChatRoom::ChatRoom(uint32_t timerTickMs, uint32_t timerSlotCount)
+	: Room(timerTickMs, timerSlotCount)
+{
+}
+
 void ChatRoom::OnPlayerExit(std::shared_ptr<Player> player)
 {
 	Room::OnPlayerExit(player);
-	bool doRemoveRoom = false;
-	{
-		auto wLock = _lock.OnWrite();
-		if (_roomExpired == false && GetPlayerCnt() == 0)
-		{
-			_roomExpired = true;
-			doRemoveRoom = true;
-		}
-	}
-	if (doRemoveRoom)
-		RoomMgr::RemoveRoom(_roomId);
 }
 RpcError ChatRoom::OnRecvPlayerNetPack(std::shared_ptr<Player> player, NetPack& pack)
 {

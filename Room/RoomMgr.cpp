@@ -8,6 +8,14 @@ std::unordered_map<int, std::shared_ptr<Room>> RoomMgr::_allRoomById =
 std::unordered_map<int, std::shared_ptr<Room>>();
 ReadWriteLock RoomMgr::_lock = ReadWriteLock();
 int RoomMgr::_roomIdInc = 0;
+uint32_t RoomMgr::_timerTickMs = 0;
+uint32_t RoomMgr::_timerSlotCount = 0;
+
+void RoomMgr::InitTimerConfig(uint32_t tickMs, uint32_t slotCount)
+{
+	_timerTickMs = tickMs == 0 ? 1 : tickMs;
+	_timerSlotCount = slotCount == 0 ? 1 : slotCount;
+}
 
 RpcError RoomMgr::AddPlayerToRoom(std::shared_ptr<Player> p, int roomId)
 {
@@ -58,10 +66,10 @@ RpcError RoomMgr::CreateRoom(Room::RoomType type, std::shared_ptr<Room>& newRoom
 		switch (type)
 		{
 		case Room::RoomType::CHAT_ROOM:
-			newRoom = std::make_shared<ChatRoom>();
+			newRoom = std::make_shared<ChatRoom>(_timerTickMs, _timerSlotCount);
 			break;
 		case Room::RoomType::POKER_ROOM:
-			newRoom = std::make_shared<PokerRoom>();
+			newRoom = std::make_shared<PokerRoom>(_timerTickMs, _timerSlotCount);
 			break;
 		default:
 			return RpcError::ROOM_TYPE_ERROR;
@@ -160,7 +168,7 @@ std::unordered_map<int, std::shared_ptr<Room>> RoomMgr::GetAllRoom()
 {
 	return _allRoomById;
 }
-void RoomMgr::TickAllRoom()
+void RoomMgr::TickAllRoom(uint32_t elapsedMs)
 {
 	std::unordered_map<int, std::shared_ptr<Room>> mapCopy{};
 	{
@@ -168,5 +176,5 @@ void RoomMgr::TickAllRoom()
 		mapCopy = std::unordered_map<int, std::shared_ptr<Room>>(_allRoomById);
 	}
 	for (const auto& room : mapCopy)
-		room.second->OnTick();
+		room.second->Tick(elapsedMs);
 }

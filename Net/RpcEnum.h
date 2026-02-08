@@ -54,6 +54,8 @@ enum RpcEnum : std::uint16_t
 	rpc_client_poker_set_blinds,
 	rpc_server_ping,
 	rpc_client_ping,
+	rpc_server_poker_add_bot,
+	rpc_server_poker_kick_bot,
 
 	INVALID,
 };

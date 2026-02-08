@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "HoldemPokerGame.h"
+#include "HoldemTableSnapshot.h"
 #include "GameItem/HandEvaluator.h"
 #include "Net/NetPack.h"
 #include <algorithm>
@@ -569,82 +570,29 @@ int HoldemPokerGame::GetTotalPot() const
 
 void HoldemPokerGame::WriteTable(NetPack& pack, int viewerPlayerId) const
 {
-	pack.WriteUInt8(static_cast<uint8_t>(_stage));
-	pack.WriteInt32(GetTotalPot());
-	pack.WriteInt32(ActingPlayerId());
-	pack.WriteInt32(_lastBet);
-	pack.WriteInt32(_smallBlind);
-	pack.WriteInt32(_bigBlind);
-
-	pack.WriteUInt8(static_cast<uint8_t>(_sidePots.size()));
-	for (const SidePot& pot : _sidePots)
-	{
-		pack.WriteInt32(pot.amount);
-		pack.WriteUInt8(static_cast<uint8_t>(pot.eligiblePlayerIds.size()));
-		for (int pid : pot.eligiblePlayerIds)
-			pack.WriteInt32(pid);
-	}
-
-	// Community cards
-	pack.WriteUInt8(static_cast<uint8_t>(_community.size()));
-	for (const Card& c : _community)
-		c.Write(pack);
-
-	// Seats
-	pack.WriteUInt8(static_cast<uint8_t>(_seats.size()));
-	for (const Seat& seat : _seats)
-	{
-		bool showHole = (seat.playerId == viewerPlayerId) ||
-			(_stage == Stage::Showdown && seat.inHand && !seat.folded);
-		seat.Write(pack, showHole);
-	}
+	HoldemTableSnapshot snapshot = HoldemTableSnapshot::Build(*this, viewerPlayerId);
+	snapshot.Write(pack);
 }
 
 void HoldemPokerGame::ReadTable(NetPack& pack)
 {
-	_stage = static_cast<Stage>(pack.ReadUInt8());
-	int totalPot = pack.ReadInt32();
-	(void)totalPot;
-	int actingPid = pack.ReadInt32();
-	_lastBet = pack.ReadInt32();
-	_smallBlind = pack.ReadInt32();
-	_bigBlind = pack.ReadInt32();
+	HoldemTableSnapshot snapshot{};
+	snapshot.Read(pack);
 
-	uint8_t potCount = pack.ReadUInt8();
-	_sidePots.clear();
-	_sidePots.reserve(potCount);
-	for (uint8_t i = 0; i < potCount; ++i)
-	{
-		SidePot pot;
-		pot.amount = pack.ReadInt32();
-		uint8_t eligibleCount = pack.ReadUInt8();
-		pot.eligiblePlayerIds.reserve(eligibleCount);
-		for (uint8_t j = 0; j < eligibleCount; ++j)
-			pot.eligiblePlayerIds.push_back(pack.ReadInt32());
-		_sidePots.push_back(pot);
-	}
+	_stage = snapshot.stage;
+	_lastBet = snapshot.lastBet;
+	_smallBlind = snapshot.smallBlind;
+	_bigBlind = snapshot.bigBlind;
+	_sidePots = snapshot.sidePots;
+	_community = snapshot.community;
 
-	// Community cards
-	uint8_t communityCount = pack.ReadUInt8();
-	_community.clear();
-	_community.reserve(communityCount);
-	for (uint8_t i = 0; i < communityCount; ++i)
-	{
-		Card c;
-		c.Read(pack);
-		_community.push_back(c);
-	}
-
-	// Seats
-	uint8_t seatCount = pack.ReadUInt8();
 	_seats.clear();
-	_seats.reserve(seatCount);
-	for (uint8_t i = 0; i < seatCount; ++i)
+	_seats.reserve(snapshot.seats.size());
+	_actingIndex = 0;
+	for (const auto& seatSnapshot : snapshot.seats)
 	{
-		Seat seat;
-		seat.Read(pack);  // Now auto-detects hasHoleCards from stream
-		_seats.push_back(seat);
-		if (seat.playerId == actingPid)
+		_seats.push_back(seatSnapshot.seat);
+		if (_seats.back().playerId == snapshot.actingPlayerId)
 			_actingIndex = _seats.size() - 1;
 	}
 }

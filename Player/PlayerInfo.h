@@ -35,6 +35,7 @@ public:
 
 	void SetName(std::string n);
 	void SetLanguage(Language l);
+	void SetID(int id);
 	
 	// Memory-only chip operations (atomic, no database write)
 	void AddChipsMemoryOnly(int delta);

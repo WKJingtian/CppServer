@@ -12,7 +12,10 @@ class RoomMgr
 	static std::unordered_map<int,std::shared_ptr<Room>> _allRoomById;
 	static ReadWriteLock _lock;
 	static int _roomIdInc;
+	static uint32_t _timerTickMs;
+	static uint32_t _timerSlotCount;
 public:
+	static void InitTimerConfig(uint32_t tickMs, uint32_t slotCount);
 	static RpcError AddPlayerToRoom(std::shared_ptr<Player> p, int roomId);
 	static RpcError RemovePlayerFromRoom(std::shared_ptr<Player> p, int roomId);
 	static RpcError CreateRoom(Room::RoomType type, std::shared_ptr<Room>& newRoom);
@@ -22,5 +25,5 @@ public:
 	static void WritePlayerRooms(std::shared_ptr<Player> p, NetPack& pack);
 	static RpcError HandleNetPack(std::shared_ptr<Player> player, NetPack& pack, int roomId);
 	static std::unordered_map<int, std::shared_ptr<Room>> GetAllRoom();
-	static void TickAllRoom();
+	static void TickAllRoom(uint32_t elapsedMs);
 };

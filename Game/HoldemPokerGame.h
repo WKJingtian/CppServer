@@ -78,6 +78,7 @@ public:
 	bool AreBlindsSet() const { return _smallBlind > 0 && _bigBlind > 0; }
 	int GetSmallBlind() const { return _smallBlind; }
 	int GetBigBlind() const { return _bigBlind; }
+	int GetLastBet() const { return _lastBet; }
 	int GetMinBuyin() const { return _minBuyin; }
 
 	// Game flow

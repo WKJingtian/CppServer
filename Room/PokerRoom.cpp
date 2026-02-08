@@ -1,8 +1,77 @@
 #include "pch.h"
 #include "PokerRoom.h"
+#include "AI/HoldemAlwaysCallBotStrategy.h"
+#include "AI/HoldemBotConfig.h"
+#include "AI/HoldemDecisionBuilder.h"
+#include "Game/HoldemTableSnapshot.h"
 #include "RoomMgr.h"
 #include "Net/NetPack.h"
 #include "Player/PlayerUtils.h"
+
+namespace
+{
+	constexpr uint64_t kSnapshotHashOffset = 14695981039346656037ull;
+	constexpr uint64_t kSnapshotHashPrime = 1099511628211ull;
+
+	uint64_t HashCombine(uint64_t hash, uint64_t value)
+	{
+		return (hash ^ value) * kSnapshotHashPrime;
+	}
+
+	uint64_t HashSeat(uint64_t hash, const Seat& seat)
+	{
+		hash = HashCombine(hash, static_cast<uint64_t>(seat.seatIndex));
+		hash = HashCombine(hash, static_cast<uint64_t>(seat.playerId));
+		hash = HashCombine(hash, static_cast<uint64_t>(seat.chips));
+		hash = HashCombine(hash, static_cast<uint64_t>(seat.currentBet));
+		hash = HashCombine(hash, static_cast<uint64_t>(seat.totalBetThisHand));
+		hash = HashCombine(hash, seat.inHand ? 1u : 0u);
+		hash = HashCombine(hash, seat.folded ? 1u : 0u);
+		hash = HashCombine(hash, seat.allIn ? 1u : 0u);
+		hash = HashCombine(hash, seat.pendingLeave ? 1u : 0u);
+		hash = HashCombine(hash, seat.sittingOut ? 1u : 0u);
+		hash = HashCombine(hash, seat.autoMode ? 1u : 0u);
+		return hash;
+	}
+
+	uint64_t HashSnapshot(const HoldemTableSnapshot& snapshot)
+	{
+		uint64_t hash = kSnapshotHashOffset;
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.stage));
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.totalPot));
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.actingPlayerId));
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.lastBet));
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.smallBlind));
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.bigBlind));
+
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.sidePots.size()));
+		for (const auto& pot : snapshot.sidePots)
+		{
+			hash = HashCombine(hash, static_cast<uint64_t>(pot.amount));
+			hash = HashCombine(hash, static_cast<uint64_t>(pot.eligiblePlayerIds.size()));
+			for (int pid : pot.eligiblePlayerIds)
+				hash = HashCombine(hash, static_cast<uint64_t>(pid));
+		}
+
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.community.size()));
+		for (const auto& card : snapshot.community)
+		{
+			hash = HashCombine(hash, static_cast<uint64_t>(card.Rank()));
+			hash = HashCombine(hash, static_cast<uint64_t>(card.Suit()));
+		}
+
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.seats.size()));
+		for (const auto& seatSnapshot : snapshot.seats)
+			hash = HashSeat(hash, seatSnapshot.seat);
+
+		return hash;
+	}
+}
+
+PokerRoom::PokerRoom(uint32_t timerTickMs, uint32_t timerSlotCount)
+	: Room(timerTickMs, timerSlotCount)
+{
+}
 
 void PokerRoom::OnPlayerExit(std::shared_ptr<Player> player)
 {
@@ -17,17 +86,6 @@ void PokerRoom::OnPlayerExit(std::shared_ptr<Player> player)
 	}
 	Room::OnPlayerExit(player);
 
-	bool doRemoveRoom = false;
-	{
-		auto wLock = _lock.OnWrite();
-		if (!_roomExpired && GetPlayerCnt() == 0)
-		{
-			_roomExpired = true;
-			doRemoveRoom = true;
-		}
-	}
-	if (doRemoveRoom)
-		RoomMgr::RemoveRoom(_roomId);
 }
 
 RpcError PokerRoom::OnRecvPlayerNetPack(std::shared_ptr<Player> player, NetPack& pack)
@@ -68,6 +126,17 @@ RpcError PokerRoom::OnRecvPlayerNetPack(std::shared_ptr<Player> player, NetPack&
 		HandlePlayerAction(player, action, amount);
 		return RpcError::SUCCESS;
 	}
+	case RpcEnum::rpc_server_poker_add_bot:
+	{
+		HandleAddBot();
+		return RpcError::SUCCESS;
+	}
+	case RpcEnum::rpc_server_poker_kick_bot:
+	{
+		int seatIdx = pack.ReadInt32();
+		HandleKickBot(seatIdx);
+		return RpcError::SUCCESS;
+	}
 	default:
 		return Room::OnRecvPlayerNetPack(player, pack);
 	}
@@ -83,10 +152,14 @@ void PokerRoom::OnTick()
 {
 	bool shouldBroadcastHandResult = false;
 	HandResult handResult;
+	int actingPlayerId = -1;
+	HoldemTableSnapshot snapshot{};
+	uint64_t snapshotHash = 0;
 	
 	{
 		auto wLock = _lock.OnWrite();
 		_game.RemovePendingLeavers();
+		ClearBotsIfNoHumans();
 		if (_game.CanStart())
 			_game.StartHand();
 		_game.ProcessAutoModePlayer();
@@ -99,13 +172,24 @@ void PokerRoom::OnTick()
 			handResult = _game.GetLastHandResult();
 			_game.ClearPendingHandResult();
 		}
+
+		actingPlayerId = _game.ActingPlayerId();
+		snapshot = HoldemTableSnapshot::Build(_game, -1);
+		snapshotHash = HashSnapshot(snapshot);
 	}
 	
 	// Broadcast hand result if available
 	if (shouldBroadcastHandResult)
 		BroadcastHandResult(handResult);
-	
-	BroadcastTableInfo();
+
+	ScheduleBotActionIfNeeded(actingPlayerId);
+
+	if (!_hasSnapshotHash || snapshotHash != _lastSnapshotHash)
+	{
+		_lastSnapshotHash = snapshotHash;
+		_hasSnapshotHash = true;
+		BroadcastTableInfo();
+	}
 }
 
 std::shared_ptr<Player> PokerRoom::GetPlayerById(int playerId)
@@ -125,6 +209,14 @@ void PokerRoom::RegisterPlayer(std::shared_ptr<Player> player)
 void PokerRoom::UnregisterPlayer(int playerId)
 {
 	_playerById.erase(playerId);
+}
+
+HoldemBot* PokerRoom::GetBotById(int botId)
+{
+	auto it = _bots.find(botId);
+	if (it != _bots.end())
+		return it->second.get();
+	return nullptr;
 }
 
 void PokerRoom::SendTableInfoTo(std::shared_ptr<Player> player)
@@ -174,6 +266,127 @@ void PokerRoom::BroadcastHandResult(const HandResult& result)
 		result.Write(send);
 		p->Send(send);
 	}
+}
+
+void PokerRoom::ScheduleBotActionIfNeeded(int actingPlayerId)
+{
+	if (actingPlayerId < 0)
+	{
+		CancelBotActionsExcept(-1);
+		return;
+	}
+
+	if (!_bots.contains(actingPlayerId))
+	{
+		CancelBotActionsExcept(-1);
+		return;
+	}
+
+	CancelBotActionsExcept(actingPlayerId);
+	if (_botActionTimers.contains(actingPlayerId))
+		return;
+
+	int delayMs = HoldemBotConfig::GetThinkTimeMs();
+	auto handle = GetTimerWheel().ScheduleOnce(static_cast<uint32_t>(delayMs),
+		[this, actingPlayerId]()
+		{
+			ExecuteBotAction(actingPlayerId);
+		});
+
+	if (handle.IsValid())
+		_botActionTimers[actingPlayerId] = handle;
+}
+
+void PokerRoom::ExecuteBotAction(int botId)
+{
+	_botActionTimers.erase(botId);
+
+	HoldemBot* bot = GetBotById(botId);
+	if (!bot)
+		return;
+
+	HoldemDecision decision{};
+	{
+		auto wLock = _lock.OnWrite();
+		if (_game.ActingPlayerId() != botId)
+			return;
+
+		HoldemTableSnapshot snapshot = HoldemTableSnapshot::Build(_game, botId);
+		HoldemDecisionSeat seat{};
+		HoldemDecisionOptions options{};
+		if (!HoldemDecisionBuilder::Build(snapshot, seat, options))
+			return;
+
+		decision = bot->Decide(snapshot, seat, options);
+		if (decision.action == HoldemDecisionAction::BetRaise && !options.canRaise)
+			decision.action = HoldemDecisionAction::CheckCall;
+
+		HoldemPokerGame::Action actionEnum = HoldemPokerGame::Action::CheckCall;
+		int amount = 0;
+		switch (decision.action)
+		{
+		case HoldemDecisionAction::CheckCall:
+			actionEnum = HoldemPokerGame::Action::CheckCall;
+			break;
+		case HoldemDecisionAction::BetRaise:
+			actionEnum = HoldemPokerGame::Action::BetRaise;
+			amount = decision.raiseTo;
+			break;
+		case HoldemDecisionAction::Fold:
+		default:
+			actionEnum = HoldemPokerGame::Action::Fold;
+			break;
+		}
+
+		_game.HandleAction(botId, actionEnum, amount);
+	}
+}
+
+void PokerRoom::CancelBotActionsExcept(int botId)
+{
+	for (auto it = _botActionTimers.begin(); it != _botActionTimers.end();)
+	{
+		if (it->first == botId)
+		{
+			++it;
+			continue;
+		}
+		GetTimerWheel().Cancel(it->second);
+		it = _botActionTimers.erase(it);
+	}
+}
+
+void PokerRoom::ClearBotsIfNoHumans()
+{
+	if (GetPlayerCnt() != 0)
+		return;
+	if (_game.GetStage() != HoldemPokerGame::Stage::Waiting)
+		return;
+	if (_bots.empty())
+		return;
+
+	for (const auto& entry : _bots)
+		_game.MarkPendingLeave(entry.first);
+	CancelBotActionsExcept(-1);
+	_bots.clear();
+	_botActionTimers.clear();
+	_game.RemovePendingLeavers();
+}
+
+void PokerRoom::RemoveBotById(int botId)
+{
+	auto it = _bots.find(botId);
+	if (it == _bots.end())
+		return;
+
+	_game.MarkPendingLeave(botId);
+	auto timerIt = _botActionTimers.find(botId);
+	if (timerIt != _botActionTimers.end())
+	{
+		GetTimerWheel().Cancel(timerIt->second);
+		_botActionTimers.erase(timerIt);
+	}
+	_bots.erase(it);
 }
 
 void PokerRoom::HandleSitDown(std::shared_ptr<Player> player, int seatIdx)
@@ -308,6 +521,51 @@ void PokerRoom::HandlePlayerAction(std::shared_ptr<Player> player, uint8_t actio
 
 	auto actionEnum = static_cast<HoldemPokerGame::Action>(action);
 	_game.HandleAction(playerId, actionEnum, amount);
+}
+
+void PokerRoom::HandleAddBot()
+{
+	auto bot = std::make_unique<HoldemBot>(std::make_unique<HoldemAlwaysCallBotStrategy>());
+	int botId = bot->GetID();
+	int actualSeatIdx = -1;
+
+	{
+		auto wLock = _lock.OnWrite();
+		if (!_game.SitDown(botId, -1, actualSeatIdx))
+			return;
+
+		int buyin = HoldemBotConfig::GetStartingChips();
+		int minBuyin = _game.GetMinBuyin();
+		if (buyin < minBuyin)
+			buyin = minBuyin;
+
+		auto result = _game.BuyIn(botId, buyin);
+		if (result != HoldemPokerGame::BuyInResult::Success)
+		{
+			_game.MarkPendingLeave(botId);
+			return;
+		}
+		bot->GetInfo().SetChipsMemoryOnly(buyin);
+		_bots[botId] = std::move(bot);
+	}
+}
+
+void PokerRoom::HandleKickBot(int seatIdx)
+{
+	if (seatIdx < 0)
+		return;
+
+	int botId = -1;
+	{
+		auto wLock = _lock.OnWrite();
+		const Seat* seat = _game.GetSeatByIndex(seatIdx);
+		if (!seat)
+			return;
+		if (!_bots.contains(seat->playerId))
+			return;
+		botId = seat->playerId;
+		RemoveBotById(botId);
+	}
 }
 
 void PokerRoom::ReturnChipsToPlayer(std::shared_ptr<Player> player)

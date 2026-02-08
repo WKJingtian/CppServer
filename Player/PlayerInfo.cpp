@@ -53,6 +53,12 @@ void PlayerInfo::SetLanguage(Language l)
 	m_language = l;
 }
 
+void PlayerInfo::SetID(int id)
+{
+	auto wLock = m_lock.OnWrite();
+	m_id = id;
+}
+
 void PlayerInfo::AddChipsMemoryOnly(int delta)
 {
 	m_chipCount.fetch_add(delta);

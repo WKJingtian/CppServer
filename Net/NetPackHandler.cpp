@@ -160,6 +160,8 @@ int NetPackHandler::DoOneTask()
 		|| pack.MsgType() == RpcEnum::rpc_server_get_poker_table_info
 		|| pack.MsgType() == RpcEnum::rpc_server_sit_down
 		|| pack.MsgType() == RpcEnum::rpc_server_poker_action
+		|| pack.MsgType() == RpcEnum::rpc_server_poker_add_bot
+		|| pack.MsgType() == RpcEnum::rpc_server_poker_kick_bot
 		|| pack.MsgType() == RpcEnum::rpc_server_poker_buyin
 		|| pack.MsgType() == RpcEnum::rpc_server_poker_standup
 		|| pack.MsgType() == RpcEnum::rpc_server_poker_set_blinds)

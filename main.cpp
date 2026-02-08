@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "AI/HoldemBotConfig.h"
 
 int main(int argc, char** argv)
 {
@@ -52,11 +53,17 @@ int main(int argc, char** argv)
 	int fixedTimeStepMs = 0;
 	int netPollIntervalMs = 0;
 	int tickLogIntervalMs = 0;
+	int timeWheelSlotCount = 0;
+	int roomEmptyDestroyDelayMs = 0;
+	int botIdBase = 0;
+	int botStartingChips = 0;
+	int botThinkTimeMs = 0;
 	std::string dbHost;
 	std::string dbUser;
 	std::string dbPassword;
 	std::string dbSchema;
 	std::string bindAddr;
+	std::string botDefaultName;
 
 	if (!requireInt("console.code_page", &consoleCodePage) ||
 		!requireString("db.host", &dbHost) ||
@@ -69,7 +76,13 @@ int main(int argc, char** argv)
 		!requireInt("net.backlog", &netBacklog) ||
 		!requireInt("loop.fixed_time_step_ms", &fixedTimeStepMs) ||
 		!requireInt("loop.net_poll_interval_ms", &netPollIntervalMs) ||
-		!requireInt("loop.tick_log_interval", &tickLogIntervalMs))
+		!requireInt("loop.tick_log_interval", &tickLogIntervalMs) ||
+		!requireInt("loop.time_wheel_default_slot_count", &timeWheelSlotCount) ||
+		!requireInt("room.empty_destroy_delay_ms", &roomEmptyDestroyDelayMs) ||
+		!requireInt("bot.id_base", &botIdBase) ||
+		!requireString("bot.default_name", &botDefaultName) ||
+		!requireInt("bot.starting_chips", &botStartingChips) ||
+		!requireInt("bot.think_time_ms", &botThinkTimeMs))
 	{
 		std::cerr << "MISSING CONFIG STIRNG" << std::endl;
 		return 1;
@@ -86,6 +99,11 @@ int main(int argc, char** argv)
 		std::cerr << "MySQL init failed!" << std::endl;
 	else
 		std::cout << "MySQL init succeded!" << std::endl;
+
+	RoomMgr::InitTimerConfig(static_cast<uint32_t>(fixedTimeStepMs),
+		static_cast<uint32_t>(timeWheelSlotCount));
+	Room::SetEmptyDestroyDelayMs(static_cast<uint32_t>(roomEmptyDestroyDelayMs));
+	HoldemBotConfig::Init(botIdBase, botStartingChips, botDefaultName, botThinkTimeMs);
 
 	WSADATA wsaData;
 	int iResult;
@@ -198,7 +216,7 @@ int main(int argc, char** argv)
 					pToDelete.insert(p);
 			});
 
-		RoomMgr::TickAllRoom();
+		RoomMgr::TickAllRoom(static_cast<uint32_t>(fixedTimeStepMs));
 		PlayerMgr::RemovePlayers(pToDelete);
 	}
 }

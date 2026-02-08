@@ -8,6 +8,7 @@ class ChatRoom : public Room
 	void BroadcastText(std::shared_ptr<Player> sender, const std::string& msg, bool includeSpeakerName);
 
 public:
+	ChatRoom(uint32_t timerTickMs, uint32_t timerSlotCount);
 	void OnPlayerExit(std::shared_ptr<Player> player) override;
 	RpcError OnRecvPlayerNetPack(std::shared_ptr<Player> player, NetPack& pack) override;
 	void OnRoomCreated(int id) override;

@@ -180,9 +180,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Config\LuaConfigLoader.cpp" />
+    <ClCompile Include="AI\HoldemAlwaysCallBotStrategy.cpp" />
+    <ClCompile Include="AI\HoldemBot.cpp" />
+    <ClCompile Include="AI\HoldemBotConfig.cpp" />
+    <ClCompile Include="AI\HoldemDecisionBuilder.cpp" />
+    <ClCompile Include="AI\HoldemRandomBotStrategy.cpp" />
     <ClCompile Include="Game\GameItem\Card.cpp" />
     <ClCompile Include="Game\GameItem\Seat.cpp" />
     <ClCompile Include="Game\HoldemPokerGame.cpp" />
+    <ClCompile Include="Game\HoldemTableSnapshot.cpp" />
     <ClCompile Include="Player\PlayerUtils.cpp" />
     <ClCompile Include="Player\Player.cpp" />
     <ClCompile Include="Room\PokerRoom.cpp" />
@@ -204,11 +210,19 @@
     <ClInclude Include="Const.h" />
     <ClInclude Include="CppServerAPI.h" />
     <ClInclude Include="Database\MySqlMgr.h" />
+    <ClInclude Include="AI\HoldemAlwaysCallBotStrategy.h" />
+    <ClInclude Include="AI\HoldemBot.h" />
+    <ClInclude Include="AI\HoldemBotConfig.h" />
+    <ClInclude Include="AI\HoldemBotDecision.h" />
+    <ClInclude Include="AI\HoldemBotStrategy.h" />
+    <ClInclude Include="AI\HoldemDecisionBuilder.h" />
+    <ClInclude Include="AI\HoldemRandomBotStrategy.h" />
     <ClInclude Include="Game\GameItem\Card.h" />
     <ClInclude Include="Game\GameItem\Deck.h" />
     <ClInclude Include="Game\GameItem\HandEvaluator.h" />
     <ClInclude Include="Game\GameItem\Seat.h" />
     <ClInclude Include="Game\HoldemPokerGame.h" />
+    <ClInclude Include="Game\HoldemTableSnapshot.h" />
     <ClInclude Include="Net\NetPackHandler.h" />
     <ClInclude Include="Player\Player.h" />
     <ClInclude Include="Player\PlayerInfo.h" />
@@ -227,6 +241,7 @@
     <ClInclude Include="Room\RoomMgr.h" />
     <ClInclude Include="Utils\ThreadPool.h" />
     <ClInclude Include="Utils\TickInfoUtil.h" />
+    <ClInclude Include="Utils\TimerWheel.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\copilot-instructions.md" />
@@ -239,6 +254,7 @@
     <None Include="LuaScript\Config.lua" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="AI\" />
     <Folder Include="LuaScript\" />
   </ItemGroup>
   <ItemGroup>
