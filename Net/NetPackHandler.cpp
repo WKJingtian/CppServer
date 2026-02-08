@@ -82,6 +82,17 @@ int NetPackHandler::DoOneTask()
 		PlayerMgr::WriteAllPlayer(send);
 		owner->Send(send);
 	}
+	else if (pack.MsgType() == RpcEnum::rpc_server_ping)
+	{
+		const int64_t clientSendMs = pack.ReadInt64();
+		const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch()).count();
+		const int64_t latencyMs = nowMs - clientSendMs;
+		NetPack send{ RpcEnum::rpc_client_ping };
+		send.WriteInt64(latencyMs);
+		send.WriteInt64(nowMs);
+		owner->Send(send);
+	}
 	else if (!owner->IsLoggedIn())
 	{
 		owner->SendError(RpcError::NOT_LOGGED_IN);

@@ -112,6 +112,15 @@ int32_t NetPack::ReadInt32()
 	m_readPos += 4;
 	return ret;
 }
+int64_t NetPack::ReadInt64()
+{
+	//assert(m_size >= m_readPos + 8);
+	if (m_size < m_readPos + 8) return 0;
+	int64_t ret;
+	std::memcpy(&ret, m_content + m_readPos, 8);
+	m_readPos += 8;
+	return ret;
+}
 uint8_t NetPack::ReadUInt8()
 {
 	//assert(m_size >= m_readPos + 1);
@@ -185,6 +194,14 @@ void NetPack::WriteInt32(int32_t val, int atPos)
 		return;
 	std::memcpy(m_content + m_size, &val, 4);
 	m_size += 4;
+	std::memcpy(m_content + 2, &m_size, 2);
+}
+void NetPack::WriteInt64(int64_t val, int atPos)
+{
+	if (!CheckWrite(m_size, 8, "WriteInt64"))
+		return;
+	std::memcpy(m_content + m_size, &val, 8);
+	m_size += 8;
 	std::memcpy(m_content + 2, &m_size, 2);
 }
 void NetPack::WriteUInt8(uint8_t val, int atPos)

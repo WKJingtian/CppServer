@@ -28,6 +28,7 @@ public:
 	int8_t ReadInt8();
 	int16_t ReadInt16();
 	int32_t ReadInt32();
+	int64_t ReadInt64();
 	uint8_t ReadUInt8();
 	uint16_t ReadUInt16();
 	uint32_t ReadUInt32();
@@ -38,6 +39,7 @@ public:
 	void WriteInt8(int8_t val, int atPos = -1);
 	void WriteInt16(int16_t val, int atPos = -1);
 	void WriteInt32(int32_t val, int atPos = -1);
+	void WriteInt64(int64_t val, int atPos = -1);
 	void WriteUInt8(uint8_t val, int atPos = -1);
 	void WriteUInt16(uint16_t val, int atPos = -1);
 	void WriteUInt32(uint32_t val, int atPos = -1);
