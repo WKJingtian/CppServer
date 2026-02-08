@@ -3,6 +3,7 @@
 #include "Net/NetPackHandler.h"
 #include "Room/RoomMgr.h"
 
+#include "Const.h"
 
 Player::Player(SOCKET&& socket) :
 	m_socket(socket)
@@ -80,10 +81,17 @@ void Player::RecvJob()
 }
 void Player::OnRecv(NetPack&& pack)
 {
+#ifdef ENABLE_PLAYER_CONNECTION_DEBUG
+	std::cout << "DEBUG PLAYER ACTION [OnRecv]: " << (int)pack.MsgType() << std::endl;
+#endif // ENABLE_PLAYER_CONNECTION_DEBUG
+
 	NetPackHandler::AddTask(m_selfPtr, pack);
 }
 void Player::Send(NetPack& pack)
 {
+#ifdef ENABLE_PLAYER_CONNECTION_DEBUG
+	std::cout << "DEBUG PLAYER ACTION [Send]: " << (int)pack.MsgType() << std::endl;
+#endif // ENABLE_PLAYER_CONNECTION_DEBUG
 	if (Expired()) return;
 	
 	std::lock_guard<std::mutex> lock(m_sendMutex);
@@ -96,6 +104,9 @@ void Player::Send(NetPack& pack)
 }
 void Player::Send(RpcEnum msgType, std::function<void(NetPack&)> func)
 {
+#ifdef ENABLE_PLAYER_CONNECTION_DEBUG
+	std::cout << "DEBUG PLAYER ACTION [Send]: " << (int)msgType << std::endl;
+#endif // ENABLE_PLAYER_CONNECTION_DEBUG
 	if (Expired()) return;
 	NetPack pack(msgType);
 	func(pack);
@@ -112,12 +123,15 @@ void Player::SendError(RpcError err)
 }
 void Player::Delete(int errCode)
 {
+#ifdef ENABLE_PLAYER_CONNECTION_DEBUG
+	std::cout << "DEBUG PLAYER ACTION [Delete]: " << errCode << std::endl;
+#endif // ENABLE_PLAYER_CONNECTION_DEBUG
+
 	// Use compare_exchange to ensure only one thread enters
 	bool expected = false;
 	if (!m_deleted.compare_exchange_strong(expected, true))
 		return;
-	
-	std::cout << "delete player(err " << errCode << ")" << std::endl;
+
 	m_info.WriteInfoToDatabase();
 	m_info.WriteAssetToDatabase();
 	
@@ -160,6 +174,9 @@ bool Player::IsLoggedIn()
 }
 RpcError Player::JoinRoom(int roomIdx)
 {
+#ifdef ENABLE_PLAYER_CONNECTION_DEBUG
+	std::cout << "DEBUG PLAYER ACTION [JoinRoom]: " << roomIdx << std::endl;
+#endif // ENABLE_PLAYER_CONNECTION_DEBUG
 	auto ret = RoomMgr::AddPlayerToRoom(m_selfPtr, roomIdx);
 	if (ret == RpcError::SUCCESS)
 	{
@@ -170,6 +187,9 @@ RpcError Player::JoinRoom(int roomIdx)
 }
 RpcError Player::LeaveRoom(int roomIdx)
 {
+#ifdef ENABLE_PLAYER_CONNECTION_DEBUG
+	std::cout << "DEBUG PLAYER ACTION [LeaveRoom]: " << roomIdx << std::endl;
+#endif // ENABLE_PLAYER_CONNECTION_DEBUG
 	auto ret = RoomMgr::RemovePlayerFromRoom(m_selfPtr, roomIdx);
 	if (ret == RpcError::SUCCESS)
 	{

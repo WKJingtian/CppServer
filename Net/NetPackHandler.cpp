@@ -2,6 +2,8 @@
 #include "NetPackHandler.h"
 #include "Player/PlayerUtils.h"
 
+#include "Const.h"
+
 NetTask::NetTask(std::shared_ptr<Player> owner, NetPack& pack)
 	: m_taskOwner(owner), m_taskPack(std::move(pack))
 { }
@@ -47,6 +49,10 @@ int NetPackHandler::DoOneTask()
 
 	if (owner == nullptr || owner->Expired())
 		return 2; // owner no longer valid
+
+#ifdef ENABLE_NETPACK_DEBUG
+	std::cout << "DEBUG INCOMING NET PACK TYPE: " << (int)pack.MsgType() << std::endl;
+#endif // ENABLE_NETPACK_DEBUG
 
 	if (pack.MsgType() == RpcEnum::rpc_server_log_in)
 	{

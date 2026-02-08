@@ -57,6 +57,9 @@ void PlayerUtils::CreateUserOnDatabase(std::string username, std::string passwor
 
 void PlayerUtils::UserLogin(int id, std::string password, std::shared_ptr<Player> owner)
 {
+#ifdef ENABLE_PLAYER_CONNECTION_DEBUG
+	std::cout << "DEBUG PLAYER ACTION [UserLogin]: " << "arg parse begin" << std::endl;
+#endif // ENABLE_PLAYER_CONNECTION_DEBUG
 	std::erase(password, '\0');
 	std::string safePassword = EscapeSqlString(password);
 	std::string where = "`_id`=" + std::to_string(id) + " AND `pswd`='" + safePassword + "'";
@@ -72,11 +75,17 @@ void PlayerUtils::UserLogin(int id, std::string password, std::shared_ptr<Player
 			else
 				owner->SendError(RpcError::WRONG_PASSWORD);
 		});
+#ifdef ENABLE_PLAYER_CONNECTION_DEBUG
+	std::cout << "DEBUG PLAYER ACTION [UserLogin]: " << id << "; " << password << "; " << pswdCorrect << "; " << std::endl;
+#endif // ENABLE_PLAYER_CONNECTION_DEBUG
 	if (!pswdCorrect) return;
 
 	MySqlMgr::Select("`wkr_server_schema`.`v_user_info_with_asset`", "*", "`_id`=" + std::to_string(id), [owner, id](mysqlx::SqlResult&& result)
 		{
 			auto row = result.fetchOne();
+#ifdef ENABLE_PLAYER_CONNECTION_DEBUG
+			std::cout << "DEBUG PLAYER ACTION [UserLogin]: " << "row is not null? " << !row.isNull() << std::endl;
+#endif // ENABLE_PLAYER_CONNECTION_DEBUG
 			if (!row.isNull())
 			{
 				PlayerInfo newPlayerInfo = PlayerInfo(row);

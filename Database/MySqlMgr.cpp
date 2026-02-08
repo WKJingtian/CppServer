@@ -89,7 +89,10 @@ int MySqlMgr::Init(
 		db._schema = schema;
 		db.EnsureConnection(true);
 	}
+
+#ifdef ENABLE_SQL_DEBUG
 	DebugDatabaseInit();
+#endif
 	return EXIT_SUCCESS;
 }
 

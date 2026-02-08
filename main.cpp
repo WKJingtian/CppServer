@@ -196,15 +196,6 @@ int main(int argc, char** argv)
 			{
 				if (p->Expired())
 					pToDelete.insert(p);
-				else if (p)
-				{
-					if (p->GetRooms().empty())
-					{
-						NetPack tickPack{ RpcEnum::rpc_server_tick };
-						TickInfoUtil::ConstructTickInfo(tickPack, TickInfoUtil::TICK_NOTHING, [](NetPack& pack) {});
-						p->Send(tickPack);
-					}
-				}
 			});
 
 		RoomMgr::TickAllRoom();

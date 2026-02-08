@@ -10,4 +10,10 @@
 #define CREATE_USER_ASSET_SQL_CMD "INSERT INTO `wkr_server_schema`.`user_asset` (`chip`, `_id`) VALUES ('{0}', LAST_INSERT_ID);"
 
 // toggle for sql debug
-#define ENABLE_SQL_DEBUG
+//#define ENABLE_SQL_DEBUG
+
+// toggle for connection debug
+#define ENABLE_PLAYER_CONNECTION_DEBUG
+
+// toggle for netpack debug
+#define ENABLE_NETPACK_DEBUG
