@@ -51,6 +51,7 @@ int main(int argc, char** argv)
 	int netBacklog = 0;
 	int fixedTimeStepMs = 0;
 	int netPollIntervalMs = 0;
+	int tickLogIntervalMs = 0;
 	std::string dbHost;
 	std::string dbUser;
 	std::string dbPassword;
@@ -67,7 +68,8 @@ int main(int argc, char** argv)
 		!requireString("net.bind_addr", &bindAddr) ||
 		!requireInt("net.backlog", &netBacklog) ||
 		!requireInt("loop.fixed_time_step_ms", &fixedTimeStepMs) ||
-		!requireInt("loop.net_poll_interval_ms", &netPollIntervalMs))
+		!requireInt("loop.net_poll_interval_ms", &netPollIntervalMs) ||
+		!requireInt("loop.tick_log_interval", &tickLogIntervalMs))
 	{
 		std::cerr << "MISSING CONFIG STIRNG" << std::endl;
 		return 1;
@@ -162,8 +164,16 @@ int main(int argc, char** argv)
 	};
 	std::thread netThread = std::thread(listenJob);
 
+	long long tickClock = tickLogIntervalMs;
 	while (true)
 	{
+		tickClock += fixedTimeStepMs;
+		if (tickClock >= tickLogIntervalMs)
+		{
+			tickClock -= tickLogIntervalMs;
+			std::cout << "[heartbeat] server's main thread is still active!" << std::endl;
+		}
+
 		const auto start{ std::chrono::steady_clock::now() };
 		long long duration = 0;
 		while (duration < fixedTimeStepMs)

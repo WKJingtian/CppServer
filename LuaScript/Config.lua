@@ -15,6 +15,7 @@ local cfg = {
     loop = {
         fixed_time_step_ms = 200,
         net_poll_interval_ms = 50,
+        tick_log_interval = 1000000,
     },
 }
 
@@ -36,5 +37,6 @@ assert_int(cfg.net.listen_port, "net.listen_port", 1, 65535)
 assert_int(cfg.net.backlog, "net.backlog", 1, 65535)
 assert_int(cfg.loop.fixed_time_step_ms, "loop.fixed_time_step_ms", 1, 60000)
 assert_int(cfg.loop.net_poll_interval_ms, "loop.net_poll_interval_ms", 1, 60000)
+assert_int(cfg.loop.tick_log_interval, "loop.tick_log_interval", 1, 1000000)
 
 return cfg
