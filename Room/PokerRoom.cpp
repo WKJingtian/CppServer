@@ -43,6 +43,9 @@ namespace
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.lastBet));
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.smallBlind));
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.bigBlind));
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.dealerSeatIndex));
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.smallBlindSeatIndex));
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.bigBlindSeatIndex));
 
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.sidePots.size()));
 		for (const auto& pot : snapshot.sidePots)
@@ -148,10 +151,52 @@ void PokerRoom::OnRoomCreated(int id)
 	_type = RoomType::POKER_ROOM;
 }
 
+void PokerRoom::OnRoomDestroy()
+{
+	std::unordered_map<int, int> refunds{};
+	{
+		auto wLock = _lock.OnWrite();
+		const auto& seats = _game.GetSeats();
+		for (const Seat& seat : seats)
+		{
+			if (seat.playerId < 0)
+				continue;
+			int refund = seat.chips + seat.totalBetThisHand;
+			if (refund <= 0)
+				continue;
+			refunds[seat.playerId] += refund;
+		}
+		CancelBotActionsExcept(-1);
+		_botActionTimers.clear();
+		_bots.clear();
+	}
+
+	for (const auto& entry : refunds)
+	{
+		int playerId = entry.first;
+		int refund = entry.second;
+		PlayerUtils::AddChipsToDatabase(playerId, refund, [playerId, refund](bool success)
+			{
+				if (success)
+				{
+					std::cout << "[PokerRoom] Returned " << refund << " chips to player " << playerId
+						<< " on room destroy" << std::endl;
+				}
+				else
+				{
+					std::cerr << "[PokerRoom] CRITICAL: Failed to return " << refund << " chips to player "
+						<< playerId << " on room destroy" << std::endl;
+				}
+			});
+	}
+
+	Room::OnRoomDestroy();
+}
+
 void PokerRoom::OnTick()
 {
 	bool shouldBroadcastHandResult = false;
-	HandResult handResult;
+	HandResult handResult{};
 	int actingPlayerId = -1;
 	HoldemTableSnapshot snapshot{};
 	uint64_t snapshotHash = 0;
@@ -456,7 +501,6 @@ void PokerRoom::HandleBuyIn(std::shared_ptr<Player> player, int amount)
 
 			player->GetInfo().AddChipsMemoryOnly(-amount);
 
-			// ????
 			auto wLock = _lock.OnWrite();
 			auto result = _game.BuyIn(playerId, amount);
 
@@ -465,7 +509,7 @@ void PokerRoom::HandleBuyIn(std::shared_ptr<Player> player, int amount)
 			if (result == HoldemPokerGame::BuyInResult::Success)
 			{
 				const Seat* seat = _game.GetSeatByPlayerId(playerId);
-				send.WriteInt32(seat ? seat->chips : 0);  // ????
+				send.WriteInt32(seat ? seat->chips : 0);
 			}
 			else
 			{

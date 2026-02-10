@@ -187,6 +187,7 @@
     <ClCompile Include="AI\HoldemRandomBotStrategy.cpp" />
     <ClCompile Include="Game\GameItem\Card.cpp" />
     <ClCompile Include="Game\GameItem\Seat.cpp" />
+    <ClCompile Include="Game\HoldemHandResult.cpp" />
     <ClCompile Include="Game\HoldemPokerGame.cpp" />
     <ClCompile Include="Game\HoldemTableSnapshot.cpp" />
     <ClCompile Include="Player\PlayerUtils.cpp" />
@@ -221,6 +222,7 @@
     <ClInclude Include="Game\GameItem\Deck.h" />
     <ClInclude Include="Game\GameItem\HandEvaluator.h" />
     <ClInclude Include="Game\GameItem\Seat.h" />
+    <ClInclude Include="Game\HoldemHandResult.h" />
     <ClInclude Include="Game\HoldemPokerGame.h" />
     <ClInclude Include="Game\HoldemTableSnapshot.h" />
     <ClInclude Include="Net\NetPackHandler.h" />

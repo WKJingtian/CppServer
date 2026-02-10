@@ -5,6 +5,7 @@
 #include "Net/NetPack.h"
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 
 HoldemPokerGame::HoldemPokerGame()
 	: _rng(std::random_device{}())
@@ -83,6 +84,8 @@ void HoldemPokerGame::StartHand()
 	}
 
 	PostBlinds();
+	for (Seat& seat : _seats)
+		seat.actedThisRound = false;
 
 	DealHoleCards();
 	size_t sbPos = FindNextValidBlindPosition(_button + 1);
@@ -215,7 +218,10 @@ void HoldemPokerGame::ResetBetsForNewRound()
 {
 	_lastBet = 0;
 	for (Seat& seat : _seats)
+	{
 		seat.currentBet = 0;
+		seat.actedThisRound = false;
+	}
 }
 
 void HoldemPokerGame::AdvanceTurn()
@@ -223,7 +229,7 @@ void HoldemPokerGame::AdvanceTurn()
 	if (_stage == Stage::Waiting || _seats.empty())
 		return;
 
-	if (AllBetsMatched())
+	if (AllBetsMatched() && AllActivePlayersActed())
 	{
 		AdvanceStage();
 		return;
@@ -258,6 +264,7 @@ void HoldemPokerGame::HandleAction(int playerId, Action action, int amount)
 		return;
 
 	int toCall = std::max(0, _lastBet - seat->currentBet);
+	bool didRaise = false;
 
 	switch (action)
 	{
@@ -283,6 +290,7 @@ void HoldemPokerGame::HandleAction(int playerId, Action action, int amount)
 		_lastBet = seat->currentBet;
 		if (seat->chips == 0)
 			seat->allIn = true;
+		didRaise = true;
 		break;
 	}
 	case Action::Fold:
@@ -291,6 +299,19 @@ void HoldemPokerGame::HandleAction(int playerId, Action action, int amount)
 		seat->folded = true;
 		break;
 	}
+	}
+
+	seat->actedThisRound = true;
+	if (didRaise)
+	{
+		for (Seat& other : _seats)
+		{
+			if (&other == seat)
+				continue;
+			if (!other.IsOccupied() || !other.inHand || other.folded || other.allIn)
+				continue;
+			other.actedThisRound = false;
+		}
 	}
 
 	ResolveIfNeeded();
@@ -320,6 +341,7 @@ void HoldemPokerGame::ProcessAutoModePlayer()
 		{
 			seat.folded = true;
 		}
+		seat.actedThisRound = true;
 		ResolveIfNeeded();
 		if (_stage != Stage::Waiting)
 			AdvanceTurn();
@@ -394,6 +416,7 @@ void HoldemPokerGame::FinishHand()
 		seat.allIn = false;
 		seat.currentBet = 0;
 		seat.totalBetThisHand = 0;
+		seat.actedThisRound = false;
 	}
 }
 
@@ -450,6 +473,8 @@ bool HoldemPokerGame::StandUp(int playerId)
 	if (!seat) return false;
 
 	seat->sittingOut = true;
+	if (seat->inHand)
+		seat->autoMode = true;
 	return true;
 }
 
@@ -462,6 +487,7 @@ bool HoldemPokerGame::SitBack(int playerId)
 		return false;
 
 	seat->sittingOut = false;
+	seat->autoMode = false;
 	return true;
 }
 
@@ -499,19 +525,48 @@ int HoldemPokerGame::GetPlayerChips(int playerId) const
 	return seat ? seat->chips : 0;
 }
 
+int HoldemPokerGame::GetDealerSeatIndex() const
+{
+	if (_seats.empty() || _button >= _seats.size())
+		return -1;
+	return _seats[_button].seatIndex;
+}
+
+int HoldemPokerGame::GetSmallBlindSeatIndex() const
+{
+	if (_seats.empty())
+		return -1;
+	size_t sbPos = FindNextValidBlindPosition(_button + 1);
+	if (sbPos >= _seats.size())
+		return -1;
+	return _seats[sbPos].seatIndex;
+}
+
+int HoldemPokerGame::GetBigBlindSeatIndex() const
+{
+	if (_seats.empty())
+		return -1;
+	size_t sbPos = FindNextValidBlindPosition(_button + 1);
+	if (sbPos >= _seats.size())
+		return -1;
+	size_t bbPos = FindNextValidBlindPosition(sbPos + 1);
+	if (bbPos >= _seats.size())
+		return -1;
+	return _seats[bbPos].seatIndex;
+}
+
 int HoldemPokerGame::CashOut(int playerId)
 {
 	Seat* seat = GetSeatByPlayerId(playerId);
 	if (!seat)
 		return 0;
 
-	// ???????????????
 	if (seat->inHand)
 		return 0;
 
 	int chips = seat->chips;
 	seat->chips = 0;
-	seat->sittingOut = true;  // ???????
+	seat->sittingOut = true;
 	return chips;
 }
 
@@ -645,6 +700,22 @@ bool HoldemPokerGame::AllBetsMatched() const
 	return activeCount > 0;
 }
 
+bool HoldemPokerGame::AllActivePlayersActed() const
+{
+	int activeCount = 0;
+	for (const Seat& seat : _seats)
+	{
+		if (!seat.IsOccupied() || !seat.inHand || seat.folded)
+			continue;
+		if (seat.allIn)
+			continue;
+		activeCount++;
+		if (!seat.actedThisRound)
+			return false;
+	}
+	return activeCount > 0;
+}
+
 void HoldemPokerGame::HandleShowdown()
 {
 	CollectBetsToSidePots();
@@ -653,11 +724,13 @@ void HoldemPokerGame::HandleShowdown()
 
 void HoldemPokerGame::DistributePots()
 {
+	std::unordered_map<int, int> chipsWonByPlayer{};
+	int totalPot = 0;
 	for (SidePot& pot : _sidePots)
 	{
+		totalPot += pot.amount;
 		if (pot.amount <= 0 || pot.eligiblePlayerIds.empty())
 			continue;
-
 
 		int bestScore = -1;
 		std::vector<int> winners;
@@ -688,12 +761,28 @@ void HoldemPokerGame::DistributePots()
 			Seat* seat = GetSeatByPlayerId(pid);
 			if (seat)
 				seat->chips += gain;
+			chipsWonByPlayer[pid] += gain;
 		}
 		pot.amount = 0;
 	}
 	_sidePots.clear();
 
-	// TODO: Broadcast winner details, send hand result RPC
+	RecordHandResult(totalPot);
+	_lastHandResult.playerResults.clear();
+	for (const Seat& s : _seats)
+	{
+		if (!s.inHand) continue;
+		PlayerHandResult pr;
+		pr.playerId = s.playerId;
+		pr.folded = s.folded;
+		pr.holeCards[0] = s.hole[0];
+		pr.holeCards[1] = s.hole[1];
+		pr.handRank = s.folded ? 0 : EvaluateHand(s);
+		auto it = chipsWonByPlayer.find(s.playerId);
+		pr.chipsWon = (it != chipsWonByPlayer.end()) ? it->second : 0;
+		_lastHandResult.playerResults.push_back(pr);
+	}
+	_hasPendingHandResult = true;
 }
 
 int HoldemPokerGame::EvaluateHand(const Seat& seat) const
@@ -711,65 +800,4 @@ void HoldemPokerGame::RecordHandResult(int totalPot)
 	_lastHandResult.Clear();
 	_lastHandResult.totalPot = totalPot;
 	_lastHandResult.communityCards = _community;
-}
-
-// HandResult serialization
-void HandResult::Write(NetPack& pack) const
-{
-	pack.WriteInt32(totalPot);
-	
-	// Community cards
-	pack.WriteUInt8(static_cast<uint8_t>(communityCards.size()));
-	for (const Card& c : communityCards)
-		c.Write(pack);
-	
-	// Player results
-	pack.WriteUInt8(static_cast<uint8_t>(playerResults.size()));
-	for (const PlayerHandResult& pr : playerResults)
-	{
-		pack.WriteInt32(pr.playerId);
-		pack.WriteInt32(pr.handRank);
-		pack.WriteInt32(pr.chipsWon);
-		pack.WriteUInt8(pr.folded ? 1 : 0);
-		pr.holeCards[0].Write(pack);
-		pr.holeCards[1].Write(pack);
-	}
-}
-
-void HandResult::Read(NetPack& pack)
-{
-	Clear();
-	totalPot = pack.ReadInt32();
-	
-	// Community cards
-	uint8_t communityCount = pack.ReadUInt8();
-	communityCards.reserve(communityCount);
-	for (uint8_t i = 0; i < communityCount; ++i)
-	{
-		Card c;
-		c.Read(pack);
-		communityCards.push_back(c);
-	}
-	
-	// Player results
-	uint8_t playerCount = pack.ReadUInt8();
-	playerResults.reserve(playerCount);
-	for (uint8_t i = 0; i < playerCount; ++i)
-	{
-		PlayerHandResult pr;
-		pr.playerId = pack.ReadInt32();
-		pr.handRank = pack.ReadInt32();
-		pr.chipsWon = pack.ReadInt32();
-		pr.folded = pack.ReadUInt8() != 0;
-		pr.holeCards[0].Read(pack);
-		pr.holeCards[1].Read(pack);
-		playerResults.push_back(pr);
-	}
-}
-
-void HandResult::Clear()
-{
-	playerResults.clear();
-	communityCards.clear();
-	totalPot = 0;
 }

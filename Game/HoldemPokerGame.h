@@ -2,6 +2,7 @@
 #include "GameItem/Card.h"
 #include "GameItem/Deck.h"
 #include "GameItem/Seat.h"
+#include "HoldemHandResult.h"
 #include <vector>
 #include <random>
 #include <cstdint>
@@ -13,28 +14,6 @@ struct SidePot
 {
 	int amount = 0;
 	std::vector<int> eligiblePlayerIds;
-};
-
-// Hand result for a single player
-struct PlayerHandResult
-{
-	int playerId = -1;
-	int handRank = 0;           // Hand strength score
-	int chipsWon = 0;           // Total chips won this hand
-	Card holeCards[2]{};        // Player's hole cards
-	bool folded = false;
-};
-
-// Complete hand result sent to clients
-struct HandResult
-{
-	std::vector<PlayerHandResult> playerResults;
-	std::vector<Card> communityCards;
-	int totalPot = 0;
-	
-	void Write(NetPack& pack) const;
-	void Read(NetPack& pack);
-	void Clear();
 };
 
 class HoldemPokerGame
@@ -80,6 +59,9 @@ public:
 	int GetBigBlind() const { return _bigBlind; }
 	int GetLastBet() const { return _lastBet; }
 	int GetMinBuyin() const { return _minBuyin; }
+	int GetDealerSeatIndex() const;
+	int GetSmallBlindSeatIndex() const;
+	int GetBigBlindSeatIndex() const;
 
 	// Game flow
 	bool CanStart() const;
@@ -132,6 +114,7 @@ private:
 	size_t NextActiveIndex(size_t start, bool includeAllIn = false) const;
 	size_t FindNextValidBlindPosition(size_t start) const;
 	bool AllBetsMatched() const;
+	bool AllActivePlayersActed() const;
 	void HandleShowdown();
 	void DistributePots();
 	int EvaluateHand(const Seat& seat) const;

@@ -17,6 +17,7 @@ struct Seat
 	bool pendingLeave = false;
 	bool sittingOut = false;
 	bool autoMode = false;
+	bool actedThisRound = false;
 	Card hole[2]{};
 
 	bool IsOccupied() const { return playerId >= 0 && !pendingLeave; }

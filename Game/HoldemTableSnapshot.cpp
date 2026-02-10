@@ -22,6 +22,9 @@ HoldemTableSnapshot HoldemTableSnapshot::Build(const HoldemPokerGame& game, int 
 	snapshot.lastBet = game.GetLastBet();
 	snapshot.smallBlind = game.GetSmallBlind();
 	snapshot.bigBlind = game.GetBigBlind();
+	snapshot.dealerSeatIndex = game.GetDealerSeatIndex();
+	snapshot.smallBlindSeatIndex = game.GetSmallBlindSeatIndex();
+	snapshot.bigBlindSeatIndex = game.GetBigBlindSeatIndex();
 	snapshot.sidePots = game.GetSidePots();
 	snapshot.community = game.GetCommunity();
 
@@ -47,6 +50,9 @@ void HoldemTableSnapshot::Write(NetPack& pack) const
 	pack.WriteInt32(lastBet);
 	pack.WriteInt32(smallBlind);
 	pack.WriteInt32(bigBlind);
+	pack.WriteInt32(dealerSeatIndex);
+	pack.WriteInt32(smallBlindSeatIndex);
+	pack.WriteInt32(bigBlindSeatIndex);
 
 	pack.WriteUInt8(static_cast<uint8_t>(sidePots.size()));
 	for (const SidePot& pot : sidePots)
@@ -74,6 +80,9 @@ void HoldemTableSnapshot::Read(NetPack& pack)
 	lastBet = pack.ReadInt32();
 	smallBlind = pack.ReadInt32();
 	bigBlind = pack.ReadInt32();
+	dealerSeatIndex = pack.ReadInt32();
+	smallBlindSeatIndex = pack.ReadInt32();
+	bigBlindSeatIndex = pack.ReadInt32();
 
 	uint8_t potCount = pack.ReadUInt8();
 	sidePots.clear();

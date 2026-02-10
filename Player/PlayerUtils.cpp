@@ -10,10 +10,10 @@ std::string PlayerUtils::EscapeSqlString(const std::string& input)
 	{
 		switch (c)
 		{
-		case '\'': output += "''"; break;  // ?????
-		case '\\': output += "\\\\"; break; // ?????
-		case '"': output += "\\\""; break;  // ?????
-		case '\0': break; // ?????
+		case '\'': output += "''"; break;
+		case '\\': output += "\\\\"; break;
+		case '"': output += "\\\""; break;
+		case '\0': break;
 		default: output += c; break;
 		}
 	}

@@ -24,6 +24,9 @@ struct HoldemTableSnapshot
 	int lastBet = 0;
 	int smallBlind = 0;
 	int bigBlind = 0;
+	int dealerSeatIndex = -1;
+	int smallBlindSeatIndex = -1;
+	int bigBlindSeatIndex = -1;
 	std::vector<SidePot> sidePots{};
 	std::vector<Card> community{};
 	std::vector<HoldemSeatSnapshot> seats{};

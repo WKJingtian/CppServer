@@ -84,6 +84,9 @@
     <ClCompile Include="Game\HoldemPokerGame.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Game\HoldemHandResult.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="Game\HoldemTableSnapshot.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -189,6 +192,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Game\HoldemPokerGame.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\HoldemHandResult.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Game\HoldemTableSnapshot.h">

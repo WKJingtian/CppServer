@@ -1,6 +1,7 @@
 #pragma once
 #include "Room.h"
 #include "AI/HoldemBot.h"
+#include "Game/HoldemHandResult.h"
 #include "Game/HoldemPokerGame.h"
 #include <unordered_map>
 #include <functional>
@@ -13,6 +14,7 @@ public:
 	void OnPlayerExit(std::shared_ptr<Player> player) override;
 	RpcError OnRecvPlayerNetPack(std::shared_ptr<Player> player, NetPack& pack) override;
 	virtual void OnRoomCreated(int id);
+	void OnRoomDestroy() override;
 	void OnTick() override;
 
 private:
