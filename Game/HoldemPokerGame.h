@@ -32,8 +32,17 @@ public:
 	enum class Action : uint8_t
 	{
 		CheckCall = 0,
-		BetRaise = 1,
-		Fold = 2
+		Bet = 1,
+		Raise = 2,
+		AllIn = 3,
+		Fold = 4
+	};
+
+	enum class ActionResult : uint8_t
+	{
+		Success = 0,
+		Ignored = 1,
+		Invalid = 2
 	};
 
 	enum class BuyInResult : uint8_t
@@ -58,6 +67,7 @@ public:
 	int GetSmallBlind() const { return _smallBlind; }
 	int GetBigBlind() const { return _bigBlind; }
 	int GetLastBet() const { return _lastBet; }
+	int GetLastRaise() const { return _lastRaise; }
 	int GetMinBuyin() const { return _minBuyin; }
 	int GetDealerSeatIndex() const;
 	int GetSmallBlindSeatIndex() const;
@@ -68,7 +78,7 @@ public:
 	void StartHand();
 	void AdvanceStage();
 	void AdvanceTurn();
-	void HandleAction(int playerId, Action action, int amount);
+	ActionResult HandleAction(int playerId, Action action, int amount);
 	void ProcessAutoModePlayer();
 	void ResolveIfNeeded();
 	void FinishHand();
@@ -113,6 +123,8 @@ private:
 	void ResetBetsForNewRound();
 	size_t NextActiveIndex(size_t start, bool includeAllIn = false) const;
 	size_t FindNextValidBlindPosition(size_t start) const;
+	int InHandSeatCount() const;
+	int CalculateDealerSeatIndex() const;
 	bool AllBetsMatched() const;
 	bool AllActivePlayersActed() const;
 	void HandleShowdown();
@@ -130,6 +142,7 @@ private:
 	size_t _button = 0;
 	size_t _actingIndex = 0;
 	int _lastBet = 0;
+	int _lastRaise = 0;
 
 	int _smallBlind = -1;
 	int _bigBlind = -1;

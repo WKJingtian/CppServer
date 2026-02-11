@@ -7,6 +7,7 @@
 #include "RoomMgr.h"
 #include "Net/NetPack.h"
 #include "Player/PlayerUtils.h"
+#include <algorithm>
 
 namespace
 {
@@ -41,6 +42,7 @@ namespace
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.totalPot));
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.actingPlayerId));
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.lastBet));
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.lastRaise));
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.smallBlind));
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.bigBlind));
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.dealerSeatIndex));
@@ -374,8 +376,16 @@ void PokerRoom::ExecuteBotAction(int botId)
 			actionEnum = HoldemPokerGame::Action::CheckCall;
 			break;
 		case HoldemDecisionAction::BetRaise:
-			actionEnum = HoldemPokerGame::Action::BetRaise;
-			amount = decision.raiseTo;
+			if (snapshot.lastBet <= 0)
+			{
+				actionEnum = HoldemPokerGame::Action::Bet;
+				amount = decision.raiseTo;
+			}
+			else
+			{
+				actionEnum = HoldemPokerGame::Action::Raise;
+				amount = std::max(0, decision.raiseTo - snapshot.lastBet);
+			}
 			break;
 		case HoldemDecisionAction::Fold:
 		default:
@@ -564,7 +574,10 @@ void PokerRoom::HandlePlayerAction(std::shared_ptr<Player> player, uint8_t actio
 		_game.StartHand();
 
 	auto actionEnum = static_cast<HoldemPokerGame::Action>(action);
-	_game.HandleAction(playerId, actionEnum, amount);
+	HoldemPokerGame::ActionResult result = _game.HandleAction(playerId, actionEnum, amount);
+
+	if (result == HoldemPokerGame::ActionResult::Invalid)
+		player->SendError(RpcError::POKER_INVALID_ACTION);
 }
 
 void PokerRoom::HandleAddBot()

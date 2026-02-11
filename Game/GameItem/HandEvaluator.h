@@ -4,6 +4,9 @@
 #include <vector>
 #include <algorithm>
 
+#undef min
+#undef max
+
 class HandEvaluator
 {
 public:
@@ -183,6 +186,46 @@ public:
 			if (rankCount[r] > 0)
 				kickers.push_back(r);
 		return Score(HandRank::HighCard, kickers);
+	}
+	
+	/*
+		HighCard = 0,
+		OnePair = 1,
+		TwoPair = 2,
+		ThreeOfAKind = 3,
+		Straight = 4,
+		Flush = 5,
+		FullHouse = 6,
+		FourOfAKind = 7,
+		StraightFlush = 8,
+		RoyalFlush = 9
+	*/
+	static std::string ParseScore(int score)
+	{
+		int type = score / 10000000;
+		switch (type)
+		{
+		case 0:
+			return "HighCard";
+		case 1:
+			return "OnePair";
+		case 2:
+			return "TwoPair";
+		case 3:
+			return "ThreeOfAKind";
+		case 4:
+			return "Straight";
+		case 5:
+			return "Flush";
+		case 6:
+			return "FullHouse";
+		case 7:
+			return "FourOfAKind";
+		case 8:
+			return "StraightFlush";
+		case 9:
+			return "RoyalFlush";
+		}
 	}
 
 private:

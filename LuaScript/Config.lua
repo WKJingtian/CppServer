@@ -24,8 +24,8 @@ local cfg = {
     bot = {
         id_base = 20000000,
         default_name = "Bot",
-        starting_chips = 10000000,
-        think_time_ms = 800,
+        starting_chips = 1000000,
+        think_time_ms = 3000,
     },
 }
 

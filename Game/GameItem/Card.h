@@ -21,7 +21,7 @@ public:
 	std::string ToString() const
 	{
 		static const char* ranks[] = { "","","2","3","4","5","6","7","8","9","T","J","Q","K","A" };
-		static const char* suits[] = { "spade","heart","diamond","club" };
+		static const char* suits[] = { "♠","♥","♦","♣" };
 		if (!IsValid()) return "??";
 		return std::string(ranks[_rank]) + suits[_suit];
 	}

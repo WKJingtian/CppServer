@@ -22,6 +22,7 @@ struct HoldemTableSnapshot
 	int totalPot = 0;
 	int actingPlayerId = -1;
 	int lastBet = 0;
+	int lastRaise = 0;
 	int smallBlind = 0;
 	int bigBlind = 0;
 	int dealerSeatIndex = -1;

@@ -63,7 +63,10 @@ bool HoldemDecisionBuilder::Build(const HoldemTableSnapshot& snapshot,
 
 	outOptions.pot = snapshot.totalPot;
 	outOptions.toCall = std::max(0, snapshot.lastBet - seat.currentBet);
-	outOptions.minRaiseTo = snapshot.lastBet + snapshot.bigBlind;
+	if (snapshot.lastBet <= 0)
+		outOptions.minRaiseTo = snapshot.bigBlind;
+	else
+		outOptions.minRaiseTo = snapshot.lastBet + std::max(snapshot.lastRaise, snapshot.bigBlind);
 	outOptions.maxRaiseTo = seat.currentBet + seat.chips;
 
 	outOptions.canFold = true;

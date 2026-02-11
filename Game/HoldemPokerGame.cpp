@@ -88,17 +88,35 @@ void HoldemPokerGame::StartHand()
 		seat.actedThisRound = false;
 
 	DealHoleCards();
-	size_t sbPos = FindNextValidBlindPosition(_button + 1);
-	size_t bbPos = FindNextValidBlindPosition(sbPos + 1);
-	_actingIndex = NextActiveIndex(bbPos + 1);
+	int inHandCount = InHandSeatCount();
+	if (inHandCount == 2)
+	{
+		_actingIndex = NextActiveIndex(_button);
+	}
+	else
+	{
+		size_t sbPos = FindNextValidBlindPosition(_button + 1);
+		size_t bbPos = FindNextValidBlindPosition(sbPos + 1);
+		_actingIndex = NextActiveIndex(bbPos + 1);
+	}
 }
 
 void HoldemPokerGame::PostBlinds()
 {
-	if (_seats.empty()) return;
+	if (_seats.empty() || _button >= _seats.size()) return;
 
-	size_t sbPos = FindNextValidBlindPosition(_button + 1);
-	size_t bbPos = FindNextValidBlindPosition(sbPos + 1);
+	size_t sbPos = _seats.size();
+	size_t bbPos = _seats.size();
+	if (InHandSeatCount() == 2)
+	{
+		sbPos = _button;
+		bbPos = FindNextValidBlindPosition(_button + 1);
+	}
+	else
+	{
+		sbPos = FindNextValidBlindPosition(_button + 1);
+		bbPos = FindNextValidBlindPosition(sbPos + 1);
+	}
 
 	if (sbPos >= _seats.size() || bbPos >= _seats.size()) return;
 
@@ -116,7 +134,8 @@ void HoldemPokerGame::PostBlinds()
 	bbSeat.totalBetThisHand = bbAmount;
 	if (bbSeat.chips == 0) bbSeat.allIn = true;
 
-	_lastBet = _bigBlind;
+	_lastBet = bbAmount;
+	_lastRaise = _bigBlind;
 }
 
 size_t HoldemPokerGame::FindNextValidBlindPosition(size_t start) const
@@ -130,6 +149,24 @@ size_t HoldemPokerGame::FindNextValidBlindPosition(size_t start) const
 			return idx;
 	}
 	return _seats.size();
+}
+
+int HoldemPokerGame::InHandSeatCount() const
+{
+	int count = 0;
+	for (const Seat& seat : _seats)
+	{
+		if (seat.inHand)
+			++count;
+	}
+	return count;
+}
+
+int HoldemPokerGame::CalculateDealerSeatIndex() const
+{
+	if (_seats.empty() || _button >= _seats.size())
+		return -1;
+	return _seats[_button].seatIndex;
 }
 
 void HoldemPokerGame::AdvanceStage()
@@ -217,6 +254,7 @@ void HoldemPokerGame::CollectBetsToSidePots()
 void HoldemPokerGame::ResetBetsForNewRound()
 {
 	_lastBet = 0;
+	_lastRaise = _bigBlind;
 	for (Seat& seat : _seats)
 	{
 		seat.currentBet = 0;
@@ -244,24 +282,24 @@ void HoldemPokerGame::AdvanceTurn()
 	_actingIndex = next;
 }
 
-void HoldemPokerGame::HandleAction(int playerId, Action action, int amount)
+HoldemPokerGame::ActionResult HoldemPokerGame::HandleAction(int playerId, Action action, int amount)
 {
 	if (_stage == Stage::Waiting)
 	{
 		if (CanStart())
 			StartHand();
-		return;
+		return ActionResult::Ignored;
 	}
 
 	Seat* seat = GetSeatByPlayerId(playerId);
-	if (!seat) return;
+	if (!seat) return ActionResult::Invalid;
 
 	if (_seats.empty() || _actingIndex >= _seats.size())
-		return;
+		return ActionResult::Invalid;
 	if (_seats[_actingIndex].playerId != playerId)
-		return;
+		return ActionResult::Invalid;
 	if (!seat->CanAct())
-		return;
+		return ActionResult::Invalid;
 
 	int toCall = std::max(0, _lastBet - seat->currentBet);
 	bool didRaise = false;
@@ -278,27 +316,123 @@ void HoldemPokerGame::HandleAction(int playerId, Action action, int amount)
 			seat->allIn = true;
 		break;
 	}
-	case Action::BetRaise:
+	case Action::Bet:
 	{
-		int minRaise = _lastBet + _bigBlind;
-		int totalBet = std::max(amount, minRaise);
-		int pay = totalBet - seat->currentBet;
+		if (_lastBet > 0)
+			return ActionResult::Invalid;
+
+		int maxTotal = seat->currentBet + seat->chips;
+		if (amount <= seat->currentBet || amount > maxTotal)
+			return ActionResult::Invalid;
+
+		bool isAllIn = amount == maxTotal;
+		if (!isAllIn && amount < _bigBlind)
+			return ActionResult::Invalid;
+
+		int pay = amount - seat->currentBet;
 		pay = std::min(pay, seat->chips);
 		seat->chips -= pay;
-		seat->currentBet += pay;
+		seat->currentBet = amount;
 		seat->totalBetThisHand += pay;
 		_lastBet = seat->currentBet;
+		_lastRaise = std::max(_bigBlind, _lastBet);
 		if (seat->chips == 0)
 			seat->allIn = true;
 		didRaise = true;
 		break;
 	}
+	case Action::Raise:
+	{
+		if (_lastBet <= 0)
+			return ActionResult::Invalid;
+		if (amount < 0)
+			return ActionResult::Invalid;
+
+		int maxTotal = seat->currentBet + seat->chips;
+		int desiredTotal = _lastBet + amount;
+		bool isAllIn = false;
+		if (desiredTotal >= maxTotal)
+		{
+			desiredTotal = maxTotal;
+			isAllIn = true;
+		}
+
+		if (desiredTotal <= seat->currentBet)
+			return ActionResult::Invalid;
+
+		int raiseAmount = desiredTotal - _lastBet;
+		if (!isAllIn)
+		{
+			if (raiseAmount <= 0 || raiseAmount < _lastRaise)
+				return ActionResult::Invalid;
+		}
+
+		int pay = desiredTotal - seat->currentBet;
+		pay = std::min(pay, seat->chips);
+		seat->chips -= pay;
+		seat->currentBet = desiredTotal;
+		seat->totalBetThisHand += pay;
+
+		int previousLastBet = _lastBet;
+		if (desiredTotal > _lastBet)
+			_lastBet = desiredTotal;
+
+		if (seat->chips == 0)
+			seat->allIn = true;
+
+		int actualRaise = desiredTotal - previousLastBet;
+		if (actualRaise >= _lastRaise)
+		{
+			_lastRaise = actualRaise;
+			didRaise = true;
+		}
+		break;
+	}
+	case Action::AllIn:
+	{
+		int maxTotal = seat->currentBet + seat->chips;
+		if (maxTotal <= seat->currentBet)
+			return ActionResult::Invalid;
+
+		if (_lastBet == 0)
+		{
+			int pay = maxTotal - seat->currentBet;
+			seat->chips -= pay;
+			seat->currentBet = maxTotal;
+			seat->totalBetThisHand += pay;
+			_lastBet = seat->currentBet;
+			_lastRaise = std::max(_bigBlind, _lastBet);
+			seat->allIn = true;
+			didRaise = true;
+			break;
+		}
+
+		int previousLastBet = _lastBet;
+		int desiredTotal = maxTotal;
+		int pay = desiredTotal - seat->currentBet;
+		pay = std::min(pay, seat->chips);
+		seat->chips -= pay;
+		seat->currentBet = desiredTotal;
+		seat->totalBetThisHand += pay;
+		if (desiredTotal > _lastBet)
+			_lastBet = desiredTotal;
+		seat->allIn = true;
+
+		int actualRaise = desiredTotal - previousLastBet;
+		if (actualRaise >= _lastRaise)
+		{
+			_lastRaise = actualRaise;
+			didRaise = true;
+		}
+		break;
+	}
 	case Action::Fold:
-	default:
 	{
 		seat->folded = true;
 		break;
 	}
+	default:
+		return ActionResult::Invalid;
 	}
 
 	seat->actedThisRound = true;
@@ -317,6 +451,8 @@ void HoldemPokerGame::HandleAction(int playerId, Action action, int amount)
 	ResolveIfNeeded();
 	if (_stage != Stage::Waiting)
 		AdvanceTurn();
+
+	return ActionResult::Success;
 }
 
 void HoldemPokerGame::ProcessAutoModePlayer()
@@ -352,6 +488,7 @@ void HoldemPokerGame::ResolveIfNeeded()
 {
 	size_t aliveIdx = 0;
 	int aliveCnt = 0;
+	bool allIn = true;
 	for (size_t i = 0; i < _seats.size(); ++i)
 	{
 		const Seat& seat = _seats[i];
@@ -359,6 +496,8 @@ void HoldemPokerGame::ResolveIfNeeded()
 			continue;
 		aliveCnt++;
 		aliveIdx = i;
+		if (!seat.allIn)
+			allIn = false;
 	}
 
 	if (aliveCnt == 0)
@@ -395,6 +534,16 @@ void HoldemPokerGame::ResolveIfNeeded()
 		return;
 	}
 
+	if (aliveCnt > 1 && allIn)
+	{
+		while (_community.size() < 5)
+			DealCommunity(1);
+		_stage = Stage::Showdown;
+		HandleShowdown();
+		FinishHand();
+		return;
+	}
+
 	if (_stage == Stage::Showdown)
 	{
 		HandleShowdown();
@@ -408,6 +557,7 @@ void HoldemPokerGame::FinishHand()
 	_community.clear();
 	_sidePots.clear();
 	_lastBet = 0;
+	_lastRaise = 0;
 
 	for (Seat& seat : _seats)
 	{
@@ -527,15 +677,15 @@ int HoldemPokerGame::GetPlayerChips(int playerId) const
 
 int HoldemPokerGame::GetDealerSeatIndex() const
 {
-	if (_seats.empty() || _button >= _seats.size())
-		return -1;
-	return _seats[_button].seatIndex;
+	return CalculateDealerSeatIndex();
 }
 
 int HoldemPokerGame::GetSmallBlindSeatIndex() const
 {
-	if (_seats.empty())
+	if (_seats.empty() || _button >= _seats.size())
 		return -1;
+	if (InHandSeatCount() == 2)
+		return _seats[_button].seatIndex;
 	size_t sbPos = FindNextValidBlindPosition(_button + 1);
 	if (sbPos >= _seats.size())
 		return -1;
@@ -544,8 +694,15 @@ int HoldemPokerGame::GetSmallBlindSeatIndex() const
 
 int HoldemPokerGame::GetBigBlindSeatIndex() const
 {
-	if (_seats.empty())
+	if (_seats.empty() || _button >= _seats.size())
 		return -1;
+	if (InHandSeatCount() == 2)
+	{
+		size_t bbPos = FindNextValidBlindPosition(_button + 1);
+		if (bbPos >= _seats.size())
+			return -1;
+		return _seats[bbPos].seatIndex;
+	}
 	size_t sbPos = FindNextValidBlindPosition(_button + 1);
 	if (sbPos >= _seats.size())
 		return -1;
@@ -638,6 +795,7 @@ void HoldemPokerGame::ReadTable(NetPack& pack)
 	_lastBet = snapshot.lastBet;
 	_smallBlind = snapshot.smallBlind;
 	_bigBlind = snapshot.bigBlind;
+	_lastRaise = snapshot.lastRaise;
 	_sidePots = snapshot.sidePots;
 	_community = snapshot.community;
 
@@ -694,7 +852,7 @@ bool HoldemPokerGame::AllBetsMatched() const
 		if (seat.allIn)
 			continue;
 		activeCount++;
-		if (seat.currentBet != _lastBet)
+		if (!seat.actedThisRound && seat.currentBet != _lastBet)
 			return false;
 	}
 	return activeCount > 0;
@@ -756,12 +914,46 @@ void HoldemPokerGame::DistributePots()
 		if (winners.empty()) continue;
 
 		int gain = pot.amount / static_cast<int>(winners.size());
+		int remainder = pot.amount % static_cast<int>(winners.size());
 		for (int pid : winners)
 		{
 			Seat* seat = GetSeatByPlayerId(pid);
 			if (seat)
 				seat->chips += gain;
 			chipsWonByPlayer[pid] += gain;
+		}
+		if (remainder > 0)
+		{
+			std::vector<int> ordered = winners;
+			if (!_seats.empty() && _button < _seats.size())
+			{
+				size_t start = (_button + 1) % _seats.size();
+				auto seatPos = [this](int pid) -> size_t {
+					for (size_t i = 0; i < _seats.size(); ++i)
+					{
+						if (_seats[i].playerId == pid)
+							return i;
+					}
+					return _seats.size();
+				};
+				std::sort(ordered.begin(), ordered.end(), [this, start, &seatPos](int a, int b) {
+					size_t posA = seatPos(a);
+					size_t posB = seatPos(b);
+					size_t distA = (posA + _seats.size() - start) % _seats.size();
+					size_t distB = (posB + _seats.size() - start) % _seats.size();
+					if (distA != distB)
+						return distA < distB;
+					return a < b;
+				});
+			}
+			for (int i = 0; i < remainder && i < static_cast<int>(ordered.size()); ++i)
+			{
+				int pid = ordered[i];
+				Seat* seat = GetSeatByPlayerId(pid);
+				if (seat)
+					seat->chips += 1;
+				chipsWonByPlayer[pid] += 1;
+			}
 		}
 		pot.amount = 0;
 	}
