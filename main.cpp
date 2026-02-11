@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "AI/HoldemBotConfig.h"
+#include "Game/HoldemPokerGame.h"
 
 int main(int argc, char** argv)
 {
@@ -55,6 +56,7 @@ int main(int argc, char** argv)
 	int tickLogIntervalMs = 0;
 	int timeWheelSlotCount = 0;
 	int roomEmptyDestroyDelayMs = 0;
+	int pokerMaxSeats = 0;
 	int botIdBase = 0;
 	int botStartingChips = 0;
 	int botThinkTimeMs = 0;
@@ -79,6 +81,7 @@ int main(int argc, char** argv)
 		!requireInt("loop.tick_log_interval", &tickLogIntervalMs) ||
 		!requireInt("loop.time_wheel_default_slot_count", &timeWheelSlotCount) ||
 		!requireInt("room.empty_destroy_delay_ms", &roomEmptyDestroyDelayMs) ||
+		!requireInt("room.poker_max_seats", &pokerMaxSeats) ||
 		!requireInt("bot.id_base", &botIdBase) ||
 		!requireString("bot.default_name", &botDefaultName) ||
 		!requireInt("bot.starting_chips", &botStartingChips) ||
@@ -104,6 +107,7 @@ int main(int argc, char** argv)
 		static_cast<uint32_t>(timeWheelSlotCount));
 	Room::SetEmptyDestroyDelayMs(static_cast<uint32_t>(roomEmptyDestroyDelayMs));
 	HoldemBotConfig::Init(botIdBase, botStartingChips, botDefaultName, botThinkTimeMs);
+	HoldemPokerGame::SetMaxSeats(pokerMaxSeats);
 
 	WSADATA wsaData;
 	int iResult;

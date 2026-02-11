@@ -57,10 +57,14 @@ public:
 	{
 		Success = 0,
 		GameInProgress = 1,
-		InvalidValue = 2
+		InvalidValue = 2,
+		PlayersSeated = 3
 	};
 
 	HoldemPokerGame();
+
+	static void SetMaxSeats(int maxSeats);
+	static int GetMaxSeats();
 
 	SetBlindsResult SetBlinds(int smallBlind, int bigBlind);
 	bool AreBlindsSet() const { return _smallBlind > 0 && _bigBlind > 0; }
@@ -72,6 +76,10 @@ public:
 	int GetDealerSeatIndex() const;
 	int GetSmallBlindSeatIndex() const;
 	int GetBigBlindSeatIndex() const;
+	int GetLastActionPlayerId() const { return _lastActionPlayerId; }
+	Action GetLastAction() const { return _lastAction; }
+	int GetLastActionAmount() const { return _lastActionAmount; }
+	bool HasLastAction() const { return _lastActionPlayerId >= 0; }
 
 	// Game flow
 	bool CanStart() const;
@@ -90,6 +98,7 @@ public:
 	bool SitBack(int playerId);
 	void MarkPendingLeave(int playerId);
 	void RemovePendingLeavers();
+	bool HasAvailableSeat() const;
 	int GetPlayerChips(int playerId) const;
 	int CashOut(int playerId);
 
@@ -123,15 +132,16 @@ private:
 	void ResetBetsForNewRound();
 	size_t NextActiveIndex(size_t start, bool includeAllIn = false) const;
 	size_t FindNextValidBlindPosition(size_t start) const;
-	int InHandSeatCount() const;
-	int CalculateDealerSeatIndex() const;
 	bool AllBetsMatched() const;
 	bool AllActivePlayersActed() const;
 	void HandleShowdown();
 	void DistributePots();
 	int EvaluateHand(const Seat& seat) const;
-	void CheckAndSitOutBrokePlayers();
-	void RecordHandResult(int totalPot);
+	void RecordHandResult(int totalPot, bool isShowdown);
+	void RecordLastAction(int playerId, Action action, int amount);
+	void ClearLastAction();
+	int GetMaxOtherEffectiveTotal(int playerId) const;
+	int GetMaxAllowedTotalBet(const Seat& seat) const;
 
 	std::vector<Seat> _seats{};
 	std::vector<Card> _community{};
@@ -139,7 +149,7 @@ private:
 	Deck _deck{};
 	std::mt19937 _rng;
 	Stage _stage = Stage::Waiting;
-	size_t _button = 0;
+	size_t _dealerIndex = 0;
 	size_t _actingIndex = 0;
 	int _lastBet = 0;
 	int _lastRaise = 0;
@@ -147,8 +157,14 @@ private:
 	int _smallBlind = -1;
 	int _bigBlind = -1;
 	int _minBuyin = 1000;
+
+	int _lastActionPlayerId = -1;
+	Action _lastAction = Action::CheckCall;
+	int _lastActionAmount = 0;
 	
 	// Hand result tracking
 	HandResult _lastHandResult{};
 	bool _hasPendingHandResult = false;
+
+	static int s_maxSeats;
 };

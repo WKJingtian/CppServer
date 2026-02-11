@@ -37,11 +37,12 @@ private:
 	void ExecuteBotAction(int botId);
 	void CancelBotActionsExcept(int botId);
 	void ClearBotsIfNoHumans();
+	void RemoveBrokeBots();
 	void RemoveBotById(int botId);
-	void HandleAddBot();
+	void HandleAddBot(std::shared_ptr<Player> player);
 	void HandleKickBot(int seatIdx);
 
-	void HandleSitDown(std::shared_ptr<Player> player, int seatIdx);
+	void HandleSitDown(std::shared_ptr<Player> player);
 	void HandleBuyIn(std::shared_ptr<Player> player, int amount);
 	void HandleStandUp(std::shared_ptr<Player> player);
 	void HandleSetBlinds(std::shared_ptr<Player> player, int smallBlind, int bigBlind);

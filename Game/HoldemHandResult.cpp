@@ -5,6 +5,7 @@
 void HandResult::Write(NetPack& pack) const
 {
 	pack.WriteInt32(totalPot);
+	pack.WriteUInt8(isShowdown ? 1 : 0);
 
 	pack.WriteUInt8(static_cast<uint8_t>(communityCards.size()));
 	for (const Card& c : communityCards)
@@ -17,8 +18,11 @@ void HandResult::Write(NetPack& pack) const
 		pack.WriteInt32(pr.handRank);
 		pack.WriteInt32(pr.chipsWon);
 		pack.WriteUInt8(pr.folded ? 1 : 0);
-		pr.holeCards[0].Write(pack);
-		pr.holeCards[1].Write(pack);
+		if (isShowdown)
+		{
+			pr.holeCards[0].Write(pack);
+			pr.holeCards[1].Write(pack);
+		}
 	}
 }
 
@@ -26,6 +30,7 @@ void HandResult::Read(NetPack& pack)
 {
 	Clear();
 	totalPot = pack.ReadInt32();
+	isShowdown = pack.ReadUInt8() != 0;
 
 	uint8_t communityCount = pack.ReadUInt8();
 	communityCards.reserve(communityCount);
@@ -45,8 +50,11 @@ void HandResult::Read(NetPack& pack)
 		pr.handRank = pack.ReadInt32();
 		pr.chipsWon = pack.ReadInt32();
 		pr.folded = pack.ReadUInt8() != 0;
-		pr.holeCards[0].Read(pack);
-		pr.holeCards[1].Read(pack);
+		if (isShowdown)
+		{
+			pr.holeCards[0].Read(pack);
+			pr.holeCards[1].Read(pack);
+		}
 		playerResults.push_back(pr);
 	}
 }
@@ -56,6 +64,7 @@ void HandResult::Clear()
 	playerResults.clear();
 	communityCards.clear();
 	totalPot = 0;
+	isShowdown = false;
 }
 
 void HandResult::WriteToDatabase() const

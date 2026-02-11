@@ -19,6 +19,7 @@ struct HandResult
 	std::vector<PlayerHandResult> playerResults;
 	std::vector<Card> communityCards;
 	int totalPot = 0;
+	bool isShowdown = false;
 
 	void Write(NetPack& pack) const;
 	void Read(NetPack& pack);

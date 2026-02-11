@@ -13,7 +13,10 @@
 //#define ENABLE_SQL_DEBUG
 
 // toggle for connection debug
-#define ENABLE_PLAYER_CONNECTION_DEBUG
+//#define ENABLE_PLAYER_CONNECTION_DEBUG
 
 // toggle for netpack debug
-#define ENABLE_NETPACK_DEBUG
+//#define ENABLE_NETPACK_DEBUG
+
+// toggle for hold'em poker debug
+#define ENABLE_HOLDEM_POKER_DEBUG

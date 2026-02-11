@@ -8,7 +8,7 @@ local cfg = {
         schema = "wkr_server_schema",
     },
     net = {
-        listen_port = 4242,
+        listen_port = 80,
         bind_addr = "0.0.0.0",
         backlog = 128,
     },
@@ -20,6 +20,7 @@ local cfg = {
     },
     room = {
         empty_destroy_delay_ms = 300000,
+        poker_max_seats = 9,
     },
     bot = {
         id_base = 20000000,
@@ -56,6 +57,7 @@ assert_int(cfg.loop.net_poll_interval_ms, "loop.net_poll_interval_ms", 1, 60000)
 assert_int(cfg.loop.tick_log_interval, "loop.tick_log_interval", 1, 1000000)
 assert_int(cfg.loop.time_wheel_default_slot_count, "loop.time_wheel_default_slot_count", 1, 1000)
 assert_int(cfg.room.empty_destroy_delay_ms, "room.empty_destroy_delay_ms", 0, 3600000)
+assert_int(cfg.room.poker_max_seats, "room.poker_max_seats", 2, 9)
 assert_int(cfg.bot.id_base, "bot.id_base", 1, 2000000000)
 assert_string(cfg.bot.default_name, "bot.default_name")
 assert_int(cfg.bot.starting_chips, "bot.starting_chips", 0, 2000000000)

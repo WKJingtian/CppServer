@@ -48,6 +48,9 @@ namespace
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.dealerSeatIndex));
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.smallBlindSeatIndex));
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.bigBlindSeatIndex));
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.lastActionPlayerId));
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.lastAction));
+		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.lastActionAmount));
 
 		hash = HashCombine(hash, static_cast<uint64_t>(snapshot.sidePots.size()));
 		for (const auto& pot : snapshot.sidePots)
@@ -102,8 +105,7 @@ RpcError PokerRoom::OnRecvPlayerNetPack(std::shared_ptr<Player> player, NetPack&
 		return RpcError::SUCCESS;
 	case RpcEnum::rpc_server_sit_down:
 	{
-		int seatIdx = pack.ReadInt32();
-		HandleSitDown(player, seatIdx);
+		HandleSitDown(player);
 		return RpcError::SUCCESS;
 	}
 	case RpcEnum::rpc_server_poker_buyin:
@@ -133,7 +135,7 @@ RpcError PokerRoom::OnRecvPlayerNetPack(std::shared_ptr<Player> player, NetPack&
 	}
 	case RpcEnum::rpc_server_poker_add_bot:
 	{
-		HandleAddBot();
+		HandleAddBot(player);
 		return RpcError::SUCCESS;
 	}
 	case RpcEnum::rpc_server_poker_kick_bot:
@@ -207,6 +209,8 @@ void PokerRoom::OnTick()
 		auto wLock = _lock.OnWrite();
 		_game.RemovePendingLeavers();
 		ClearBotsIfNoHumans();
+		if (_game.GetStage() == HoldemPokerGame::Stage::Waiting)
+			RemoveBrokeBots();
 		if (_game.CanStart())
 			_game.StartHand();
 		_game.ProcessAutoModePlayer();
@@ -428,6 +432,29 @@ void PokerRoom::ClearBotsIfNoHumans()
 	_game.RemovePendingLeavers();
 }
 
+void PokerRoom::RemoveBrokeBots()
+{
+	if (_bots.empty())
+		return;
+
+	std::vector<int> toRemove{};
+	for (const auto& entry : _bots)
+	{
+		int botId = entry.first;
+		const Seat* seat = _game.GetSeatByPlayerId(botId);
+		if (!seat || seat->chips <= 0)
+			toRemove.push_back(botId);
+	}
+
+	if (toRemove.empty())
+		return;
+
+	for (int botId : toRemove)
+		RemoveBotById(botId);
+
+	_game.RemovePendingLeavers();
+}
+
 void PokerRoom::RemoveBotById(int botId)
 {
 	auto it = _bots.find(botId);
@@ -444,7 +471,7 @@ void PokerRoom::RemoveBotById(int botId)
 	_bots.erase(it);
 }
 
-void PokerRoom::HandleSitDown(std::shared_ptr<Player> player, int seatIdx)
+void PokerRoom::HandleSitDown(std::shared_ptr<Player> player)
 {
 	if (!player) return;
 
@@ -452,7 +479,19 @@ void PokerRoom::HandleSitDown(std::shared_ptr<Player> player, int seatIdx)
 	int playerId = player->GetID();
 	int actualSeatIdx = -1;
 
-	if (!_game.SitDown(playerId, seatIdx, actualSeatIdx))
+	if (!_game.AreBlindsSet())
+	{
+		player->SendError(RpcError::POKER_BLINDS_NOT_SET);
+		return;
+	}
+
+	if (!_game.HasAvailableSeat())
+	{
+		player->SendError(RpcError::POKER_TABLE_FULL);
+		return;
+	}
+
+	if (!_game.SitDown(playerId, -1, actualSeatIdx))
 		return;
 
 	RegisterPlayer(player);
@@ -552,6 +591,13 @@ void PokerRoom::HandleSetBlinds(std::shared_ptr<Player> player, int smallBlind, 
 {
 	if (!player) return;
 
+	if (smallBlind <= 0 ||
+		bigBlind < 2 * smallBlind)
+	{
+		player->SendError(RpcError::POKER_INVALID_BLIND);
+		return;
+	}
+
 	auto wLock = _lock.OnWrite();
 	auto result = _game.SetBlinds(smallBlind, bigBlind);
 
@@ -580,8 +626,22 @@ void PokerRoom::HandlePlayerAction(std::shared_ptr<Player> player, uint8_t actio
 		player->SendError(RpcError::POKER_INVALID_ACTION);
 }
 
-void PokerRoom::HandleAddBot()
+void PokerRoom::HandleAddBot(std::shared_ptr<Player> player)
 {
+	if (player)
+	{
+		bool blindsSet = false;
+		{
+			auto rLock = _lock.OnRead();
+			blindsSet = _game.AreBlindsSet();
+		}
+		if (!blindsSet)
+		{
+			player->SendError(RpcError::POKER_BLINDS_NOT_SET);
+			return;
+		}
+	}
+
 	auto bot = std::make_unique<HoldemBot>(std::make_unique<HoldemAlwaysCallBotStrategy>());
 	int botId = bot->GetID();
 	int actualSeatIdx = -1;
