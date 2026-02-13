@@ -210,6 +210,7 @@
     <ClInclude Include="Config\LuaConfigLoader.h" />
     <ClInclude Include="Const.h" />
     <ClInclude Include="CppServerAPI.h" />
+    <ClInclude Include="Database\DbThreadPool.h" />
     <ClInclude Include="Database\MySqlMgr.h" />
     <ClInclude Include="AI\HoldemAlwaysCallBotStrategy.h" />
     <ClInclude Include="AI\HoldemBot.h" />
@@ -231,6 +232,7 @@
     <ClInclude Include="Player\PlayerUtils.h" />
     <ClInclude Include="Player\PlayerMgr.h" />
     <ClInclude Include="Room\PokerRoom.h" />
+    <ClInclude Include="Utils\MainThreadDispatcher.h" />
     <ClInclude Include="Utils\Utils.h" />
     <ClInclude Include="Utils\ReadWriteLock.h" />
     <ClInclude Include="Room\ChatRoom.h" />
