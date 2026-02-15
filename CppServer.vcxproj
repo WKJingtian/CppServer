@@ -194,7 +194,6 @@
     <ClCompile Include="Player\Player.cpp" />
     <ClCompile Include="Room\PokerRoom.cpp" />
     <ClCompile Include="Utils\Utils.cpp" />
-    <ClCompile Include="Utils\ReadWriteLock.cpp" />
     <ClCompile Include="Room\ChatRoom.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Database\MySqlMgr.cpp" />
@@ -204,7 +203,6 @@
     <ClCompile Include="Player\PlayerInfo.cpp" />
     <ClCompile Include="Room\Room.cpp" />
     <ClCompile Include="Room\RoomMgr.cpp" />
-    <ClCompile Include="Utils\ThreadPool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Config\LuaConfigLoader.h" />
@@ -232,7 +230,9 @@
     <ClInclude Include="Player\PlayerUtils.h" />
     <ClInclude Include="Player\PlayerMgr.h" />
     <ClInclude Include="Room\PokerRoom.h" />
+    <ClInclude Include="Utils\IocpEpoll.h" />
     <ClInclude Include="Utils\MainThreadDispatcher.h" />
+    <ClInclude Include="Utils\RBTree.h" />
     <ClInclude Include="Utils\Utils.h" />
     <ClInclude Include="Utils\ReadWriteLock.h" />
     <ClInclude Include="Room\ChatRoom.h" />
