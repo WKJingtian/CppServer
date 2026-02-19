@@ -42,6 +42,9 @@
     <ClCompile Include="Net\NetPack.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Net\NetEventQueue.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="Player\PlayerInfo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -128,6 +131,9 @@
     <ClInclude Include="Net\NetPack.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Net\NetEventQueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="Net\RpcEnum.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -159,6 +165,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Net\NetPackHandler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Net\INetEngine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Utils\TickInfoUtil.h">

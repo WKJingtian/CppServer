@@ -199,6 +199,7 @@
     <ClCompile Include="Database\MySqlMgr.cpp" />
     <ClCompile Include="Net\NetPackHandler.cpp" />
     <ClCompile Include="Net\NetPack.cpp" />
+    <ClCompile Include="Net\NetEventQueue.cpp" />
     <ClCompile Include="Player\PlayerMgr.cpp" />
     <ClCompile Include="Player\PlayerInfo.cpp" />
     <ClCompile Include="Room\Room.cpp" />
@@ -225,6 +226,8 @@
     <ClInclude Include="Game\HoldemPokerGame.h" />
     <ClInclude Include="Game\HoldemTableSnapshot.h" />
     <ClInclude Include="Net\NetPackHandler.h" />
+    <ClInclude Include="Net\INetEngine.h" />
+    <ClInclude Include="Net\NetEventQueue.h" />
     <ClInclude Include="Player\Player.h" />
     <ClInclude Include="Player\PlayerInfo.h" />
     <ClInclude Include="Player\PlayerUtils.h" />
