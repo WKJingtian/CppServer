@@ -230,7 +230,6 @@
     <ClInclude Include="Player\PlayerUtils.h" />
     <ClInclude Include="Player\PlayerMgr.h" />
     <ClInclude Include="Room\PokerRoom.h" />
-    <ClInclude Include="Utils\IocpEpoll.h" />
     <ClInclude Include="Utils\MainThreadDispatcher.h" />
     <ClInclude Include="Utils\RBTree.h" />
     <ClInclude Include="Utils\Utils.h" />
