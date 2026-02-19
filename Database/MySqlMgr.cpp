@@ -6,7 +6,7 @@
 #include "Utils/Utils.h"
 #include "Const.h"
 
-MySqlMgr::MySqlMgr() : _sqlSession(nullptr) {}
+MySqlMgr::MySqlMgr() = default;
 
 MySqlMgr& MySqlMgr::Instance()
 {
@@ -14,39 +14,57 @@ MySqlMgr& MySqlMgr::Instance()
 	return instance;
 }
 
-void MySqlMgr::EnsureConnection(bool forceUpdate)
+std::shared_ptr<mysqlx::Client> MySqlMgr::EnsureClient(bool forceUpdate)
 {
-	if (_sqlSession && !forceUpdate)
-		return;
+	if (!forceUpdate)
+	{
+		auto rLock = _lock.OnRead();
+		if (_client)
+			return _client;
+	}
+
+	auto wLock = _lock.OnWrite();
+	if (!forceUpdate && _client)
+		return _client;
+
+	if (_url.empty() || _user.empty() || _schema.empty())
+	{
+		_client.reset();
+		return nullptr;
+	}
 
 	try
 	{
-		auto setting = mysqlx::SessionSettings(
+		_client = std::make_shared<mysqlx::Client>(
 			mysqlx::SessionOption::USER, _user,
 			mysqlx::SessionOption::PWD, _pass,
 			mysqlx::SessionOption::HOST, _url,
 			mysqlx::SessionOption::PORT, _port,
 			mysqlx::SessionOption::DB, _schema,
-			mysqlx::SessionOption::SSL_MODE, mysqlx::SSLMode::REQUIRED
+			mysqlx::SessionOption::SSL_MODE, mysqlx::SSLMode::REQUIRED,
+			mysqlx::ClientOption::POOLING, true
 		);
-		//_sqlSession = std::make_unique<mysqlx::Session>(setting);
-		_sqlSession = new mysqlx::Session(setting);
 	}
 	catch (sql::SQLException& e)
 	{
 		std::cout << "MYSQL ERROR: " << e.getErrorCode() << std::endl;
-		return;
+		_client.reset();
+		return nullptr;
 	}
 	catch (std::exception& e)
 	{
 		std::cout << "STD ERROR: " << e.what() << std::endl;
-		return;
+		_client.reset();
+		return nullptr;
 	}
+	return _client;
 }
 int MySqlMgr::DebugDatabaseInit()
 {
 	auto& db = Instance();
-	db.EnsureConnection();
+	auto client = db.EnsureClient();
+	if (!client)
+		return EXIT_FAILURE;
 
 	try
 	{
@@ -79,16 +97,16 @@ int MySqlMgr::Init(
 	const std::string& pass,
 	const std::string& schema)
 {
+	auto& db = Instance();
 	{
-		auto& db = Instance();
 		auto lock = db._lock.OnWrite();
 		db._url = url;
 		db._port = port;
 		db._user = user;
 		db._pass = pass;
 		db._schema = schema;
-		db.EnsureConnection(true);
 	}
+	db.EnsureClient(true);
 
 #ifdef ENABLE_SQL_DEBUG
 	DebugDatabaseInit();
@@ -105,10 +123,15 @@ void MySqlMgr::DoSql(const std::string& sqlCmd, std::function<void(mysqlx::SqlRe
 	try
 	{
 		auto& db = Instance();
-		auto lock = db._lock.OnWrite();
-		db.EnsureConnection();
+		auto client = db.EnsureClient();
+		if (!client)
+		{
+			func(std::move(result));
+			return;
+		}
 
-		result = db._sqlSession->sql(sqlCmd).execute();
+		mysqlx::Session session(*client);
+		result = session.sql(sqlCmd).execute();
 	}
 	catch (const mysqlx::Error& e)
 	{
@@ -128,13 +151,19 @@ void MySqlMgr::DoSql(const std::vector<std::string>& sqlCmds, std::function<void
 		std::cout << "SQL DEBUG MSG: DoSql - " << sqlCmd << std::endl;
 #endif
 	std::vector<mysqlx::SqlResult> results;
+	auto& db = Instance();
+	auto client = db.EnsureClient();
+	if (!client)
+	{
+		func(std::move(results));
+		return;
+	}
+
+	std::unique_ptr<mysqlx::Session> session;
 	try
 	{
-		auto& db = Instance();
-		auto lock = db._lock.OnWrite();
-		db.EnsureConnection();
-
-		db._sqlSession->startTransaction();
+		session = std::make_unique<mysqlx::Session>(*client);
+		session->startTransaction();
 
 		int lastId = -1;
 		for (const auto& sqlCmd : sqlCmds)
@@ -142,19 +171,19 @@ void MySqlMgr::DoSql(const std::vector<std::string>& sqlCmds, std::function<void
 			std::string finalCmd = sqlCmd;
 			if (enableLastIdReplace)
 				Utils::StringReplace(finalCmd, "LAST_INSERT_ID", std::to_string(lastId));
-			results.push_back(db._sqlSession->sql(finalCmd).execute());
+			results.push_back(session->sql(finalCmd).execute());
 			lastId = static_cast<int>(results[results.size() - 1].getAutoIncrementValue());
 		}
 
-		db._sqlSession->commit();
+		session->commit();
 	}
 	catch (const mysqlx::Error& e)
 	{
 		std::cout << "MYSQL ERROR: " << e << std::endl;
 		try
 		{
-			auto& db = Instance();
-			db._sqlSession->rollback();
+			if (session)
+				session->rollback();
 		}
 		catch (const std::exception& rollbackEx)
 		{
@@ -167,8 +196,8 @@ void MySqlMgr::DoSql(const std::vector<std::string>& sqlCmds, std::function<void
 		std::cout << "STD ERROR: " << e.what() << std::endl;
 		try
 		{
-			auto& db = Instance();
-			db._sqlSession->rollback();
+			if (session)
+				session->rollback();
 		}
 		catch (const std::exception& rollbackEx)
 		{
@@ -185,8 +214,12 @@ void MySqlMgr::Select(const std::string& table, const std::string& columns, cons
 	try
 	{
 		auto& db = Instance();
-		auto lock = db._lock.OnWrite();
-		db.EnsureConnection();
+		auto client = db.EnsureClient();
+		if (!client)
+		{
+			func(std::move(result));
+			return;
+		}
 
 		std::ostringstream ss;
 		ss << "SELECT " << (columns.empty() ? "*" : columns) << " FROM " << table;
@@ -195,7 +228,8 @@ void MySqlMgr::Select(const std::string& table, const std::string& columns, cons
 #ifdef ENABLE_SQL_DEBUG
 		std::cout << "SQL DEBUG MSG: Select - " << ss.str() << std::endl;
 #endif
-		result = db._sqlSession->sql(ss.str()).execute();
+		mysqlx::Session session(*client);
+		result = session.sql(ss.str()).execute();
 	}
 	catch (const mysqlx::Error& e)
 	{
@@ -214,8 +248,12 @@ void MySqlMgr::Update(const std::string& table, const std::string& setClause, co
 	try
 	{
 		auto& db = Instance();
-		auto lock = db._lock.OnWrite();
-		db.EnsureConnection();
+		auto client = db.EnsureClient();
+		if (!client)
+		{
+			func(std::move(result));
+			return;
+		}
 
 		std::ostringstream ss;
 		ss << "UPDATE " << table << " SET " << setClause;
@@ -224,7 +262,8 @@ void MySqlMgr::Update(const std::string& table, const std::string& setClause, co
 #ifdef ENABLE_SQL_DEBUG
 		std::cout << "SQL DEBUG MSG: Update - " << ss.str() << std::endl;
 #endif
-		result = db._sqlSession->sql(ss.str()).execute();
+		mysqlx::Session session(*client);
+		result = session.sql(ss.str()).execute();
 	}
 	catch (const mysqlx::Error& e)
 	{
@@ -243,8 +282,12 @@ void MySqlMgr::Delete(const std::string& table, const std::string& where, std::f
 	try
 	{
 		auto& db = Instance();
-		auto lock = db._lock.OnWrite();
-		db.EnsureConnection();
+		auto client = db.EnsureClient();
+		if (!client)
+		{
+			func(std::move(result));
+			return;
+		}
 
 		std::ostringstream ss;
 		ss << "DELETE FROM " << table;
@@ -253,7 +296,8 @@ void MySqlMgr::Delete(const std::string& table, const std::string& where, std::f
 #ifdef ENABLE_SQL_DEBUG
 		std::cout << "SQL DEBUG MSG: Delete - " << ss.str() << std::endl;
 #endif
-		result = db._sqlSession->sql(ss.str()).execute();
+		mysqlx::Session session(*client);
+		result = session.sql(ss.str()).execute();
 	}
 	catch (const mysqlx::Error& e)
 	{
@@ -272,8 +316,12 @@ void MySqlMgr::Upsert(const std::string& table, const std::string& columns, cons
 	try
 	{
 		auto& db = Instance();
-		auto lock = db._lock.OnWrite();
-		db.EnsureConnection();
+		auto client = db.EnsureClient();
+		if (!client)
+		{
+			func(std::move(result));
+			return;
+		}
 
 		std::ostringstream ss;
 		ss << "INSERT INTO " << table << " (" << columns << ") VALUES (" << values << ")";
@@ -282,7 +330,8 @@ void MySqlMgr::Upsert(const std::string& table, const std::string& columns, cons
 #ifdef ENABLE_SQL_DEBUG
 		std::cout << "SQL DEBUG MSG: Upsert - " << ss.str() << std::endl;
 #endif
-		result = db._sqlSession->sql(ss.str()).execute();
+		mysqlx::Session session(*client);
+		result = session.sql(ss.str()).execute();
 	}
 	catch (const mysqlx::Error& e)
 	{

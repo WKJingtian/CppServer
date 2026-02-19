@@ -15,8 +15,7 @@ class CPPSERVER_API MySqlMgr
 	static MySqlMgr& Instance();
 	static int DebugDatabaseInit();
 
-	//std::unique_ptr<mysqlx::Session> _sqlSession;
-	mysqlx::Session* _sqlSession;
+	std::shared_ptr<mysqlx::Client> _client;
 	std::string _url{};
 	std::string _user{};
 	std::string _pass{};
@@ -24,7 +23,7 @@ class CPPSERVER_API MySqlMgr
 	unsigned int _port;
 	ReadWriteLock _lock;
 
-	void EnsureConnection(bool forceUpdate = false);
+	std::shared_ptr<mysqlx::Client> EnsureClient(bool forceUpdate = false);
 
 	MySqlMgr();
 	MySqlMgr(const MySqlMgr&) = delete;
