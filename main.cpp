@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "AI/HoldemBotConfig.h"
 #include "Game/HoldemPokerGame.h"
-#include "Utils/MainThreadDispatcher.h"
 #include "Net/NetIocpEngine.h"
 #include "Net/NetEventBridge.h"
 
@@ -177,7 +176,6 @@ int main(int argc, char** argv)
 				if (er != 0) std::cout << "NetPackHandler::DoOneTask WARNING: " << er << std::endl;
 				er = NetPackHandler::DoOneTask();
 			}
-			MainThreadDispatcher::Drain();
 			std::this_thread::sleep_for(std::chrono::milliseconds(netPollIntervalMs));
 			duration =
 				std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
