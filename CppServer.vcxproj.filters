@@ -45,6 +45,9 @@
     <ClCompile Include="Net\NetEventQueue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Net\NetIocpContext.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="Player\PlayerInfo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -132,6 +135,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Net\NetEventQueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Net\NetIocpContext.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Net\RpcEnum.h">

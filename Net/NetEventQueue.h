@@ -20,6 +20,7 @@ struct CPPSERVER_API NetEvent
 	NetConnId connId = 0;
 	// Payload is copied for safety and simplicity.
 	// TODO: optimize with a buffer pool or ref-counted slices to reduce copying.
+	// TODO: consider a lock-free MPSC queue if this becomes a bottleneck.
 	std::vector<uint8_t> data;
 
 	static NetEvent MakeConnected(NetConnId id);
