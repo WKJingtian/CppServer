@@ -11,17 +11,45 @@ PlayerMgr& PlayerMgr::Instance()
 	return instance;
 }
 
-std::shared_ptr<Player> PlayerMgr::OnPlayerConnected(SOCKET&& socket)
+std::shared_ptr<Player> PlayerMgr::OnPlayerConnected(NetConnId connId, INetEngine* engine)
 {
 	auto& mgr = Instance();
-	std::shared_ptr<Player> newPlayer = std::make_shared<Player>(std::move(socket));
+	std::shared_ptr<Player> newPlayer = std::make_shared<Player>(connId, engine);
 	newPlayer->m_selfPtr = newPlayer;
 	{
 		auto wLock = mgr._lock.OnWrite();
 		mgr._allPlayer.insert(newPlayer);
 		mgr._preLogInPlayer.insert(newPlayer);
+		mgr._connIdPlayer[connId] = newPlayer;
 	}
 	return newPlayer;
+}
+
+std::shared_ptr<Player> PlayerMgr::FindByConnId(NetConnId connId)
+{
+	auto& mgr = Instance();
+	auto rLock = mgr._lock.OnRead();
+	auto it = mgr._connIdPlayer.find(connId);
+	if (it == mgr._connIdPlayer.end())
+		return nullptr;
+	return it->second;
+}
+
+void PlayerMgr::OnPlayerDisconnected(NetConnId connId)
+{
+	auto& mgr = Instance();
+	std::shared_ptr<Player> target = nullptr;
+	{
+		auto wLock = mgr._lock.OnWrite();
+		auto it = mgr._connIdPlayer.find(connId);
+		if (it != mgr._connIdPlayer.end())
+		{
+			target = it->second;
+			mgr._connIdPlayer.erase(it);
+		}
+	}
+	if (target)
+		target->Delete();
 }
 UINT16 PlayerMgr::OnPlayerLoggedIn(std::shared_ptr<Player> p, const PlayerInfo& info)
 {
@@ -48,6 +76,8 @@ void PlayerMgr::RemovePlayers(std::unordered_set<std::shared_ptr<Player>> player
 			mgr._allPlayer.erase(p);
 			if (mgr._loggedInPlayer.contains(p->m_info.m_id))
 				mgr._loggedInPlayer.erase(p->m_info.m_id);
+			if (p->GetConnId() != 0)
+				mgr._connIdPlayer.erase(p->GetConnId());
 		}
 	}
 	for (auto p : playerSet)

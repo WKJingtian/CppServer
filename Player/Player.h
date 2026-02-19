@@ -3,18 +3,19 @@
 #include "Net/RpcError.h"
 #include "Net/RpcEnum.h"
 #include "PlayerInfo.h"
+#include "Net/NetEventQueue.h"
 #include <mutex>
 #include <atomic>
 #include <unordered_set>
 
 class NetPack;
+class INetEngine;
 class CPPSERVER_API Player
 {
-	SOCKET m_socket;
 	PlayerInfo m_info{};
-	std::thread m_recvThread;
 	std::atomic<bool> m_deleted{false};
-	std::atomic<bool> m_recvEnded{false};
+	NetConnId m_connId = 0;
+	INetEngine* m_netEngine = nullptr;
 	
 	// Multi-room support: set of room IDs the player is in
 	std::unordered_set<int> m_rooms{};
@@ -22,21 +23,16 @@ class CPPSERVER_API Player
 	
 	bool m_loggedIn = false;
 	std::shared_ptr<Player> m_selfPtr = nullptr;
-	
-	// Mutex for protecting socket send operations
-	mutable std::mutex m_sendMutex;
-	
-	void RecvJob();
-	void OnRecv(NetPack&& pack);
 public:
 	Player() = delete;
-	Player(SOCKET&& socket);
+	Player(NetConnId connId, INetEngine* engine);
 	~Player();
 	void Send(NetPack& pack);
 	void Send(RpcEnum msgType, std::function<void(NetPack&)> func);
 	void SendError(RpcError err);
 	void Delete(int errCode = 0);
 	bool Expired();
+	NetConnId GetConnId() const;
 
 	PlayerInfo& GetInfo();
 	void SetInfo(PlayerInfo newInfo);

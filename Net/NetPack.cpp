@@ -23,7 +23,7 @@ NetPack::NetPack(RpcEnum typ)
 	WriteUInt16((uint16_t)m_enumType);
 	WriteUInt16((uint16_t)4);
 }
-NetPack::NetPack(uint8_t* stream)
+NetPack::NetPack(const uint8_t* stream)
 {
 	uint16_t rawType = 0;
 	uint16_t rawSize = 0;

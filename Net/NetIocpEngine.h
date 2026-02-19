@@ -15,6 +15,7 @@ public:
 
 	bool Start(const NetEngineConfig& config) override;
 	void Stop() override;
+	void Disconnect(NetConnId connId) override;
 	bool Send(NetConnId connId, const uint8_t* data, size_t len) override;
 	size_t DrainEvents(std::vector<NetEvent>& out) override;
 

@@ -13,7 +13,7 @@ class CPPSERVER_API NetPack
 public:
 	NetPack() = delete;
 	NetPack(RpcEnum typ);               // used to write & send
-	NetPack(uint8_t* stream);           // used to receive & read
+	NetPack(const uint8_t* stream);     // used to receive & read
 	NetPack(NetPack&& src) noexcept;    // move to different thread
 
 	void operator = (NetPack&& src) noexcept;

@@ -63,6 +63,16 @@ void NetIocpEngine::Stop()
 	}
 }
 
+void NetIocpEngine::Disconnect(NetConnId connId)
+{
+	auto ctx = FindConnection(connId);
+	if (!ctx)
+		return;
+	if (ctx->closing.exchange(true))
+		return;
+	CloseConnection(ctx, false);
+}
+
 bool NetIocpEngine::Send(NetConnId connId, const uint8_t* data, size_t len)
 {
 	auto ctx = FindConnection(connId);
@@ -465,6 +475,10 @@ void NetIocpEngine::CloseConnection(const std::shared_ptr<NetConnectionContext>&
 	{
 		closesocket(ctx->socket);
 		ctx->socket = INVALID_SOCKET;
+	}
+	{
+		std::lock_guard<std::mutex> lock(_connMutex);
+		_connections.erase(ctx->connId);
 	}
 	if (notify)
 		PushDisconnectedEvent(ctx->connId);

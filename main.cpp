@@ -2,6 +2,8 @@
 #include "AI/HoldemBotConfig.h"
 #include "Game/HoldemPokerGame.h"
 #include "Utils/MainThreadDispatcher.h"
+#include "Net/NetIocpEngine.h"
+#include "Net/NetEventBridge.h"
 
 int main(int argc, char** argv)
 {
@@ -47,11 +49,25 @@ int main(int argc, char** argv)
 		*outValue = std::get<std::string>(it->second);
 		return true;
 	};
+	auto optionalInt = [&](const char* key, int* outValue) -> bool
+	{
+		auto it = configValues.find(key);
+		if (it == configValues.end())
+			return true;
+		if (!std::holds_alternative<int>(it->second))
+		{
+			std::cerr << "Config key must be int: " << key << std::endl;
+			return false;
+		}
+		*outValue = std::get<int>(it->second);
+		return true;
+	};
 
 	int consoleCodePage = 0;
 	int dbPort = 0;
 	int netListenPort = 0;
 	int netBacklog = 0;
+	int iocpWorkerCount = 0;
 	int fixedTimeStepMs = 0;
 	int netPollIntervalMs = 0;
 	int tickLogIntervalMs = 0;
@@ -91,6 +107,8 @@ int main(int argc, char** argv)
 		std::cerr << "MISSING CONFIG STIRNG" << std::endl;
 		return 1;
 	}
+	if (!optionalInt("net.iocp_worker_count", &iocpWorkerCount))
+		return 1;
 
 	if (consoleCodePage > 0)
 	{
@@ -120,74 +138,22 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	const std::string serverPort = std::to_string(netListenPort);
-	struct addrinfo* result = NULL, * ptr = NULL, hints;
-	ZeroMemory(&hints, sizeof(hints));
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
-	hints.ai_flags = AI_PASSIVE;
-	// Resolve the local address and port to be used by the server
-	const char* bindAddress = nullptr;
-	if (!bindAddr.empty() && bindAddr != "*")
-		bindAddress = bindAddr.c_str();
-	iResult = getaddrinfo(bindAddress, serverPort.c_str(), &hints, &result);
-	if (iResult != 0) {
-		printf("getaddrinfo failed: %d\n", iResult);
-		WSACleanup();
-		return 1;
-	}
-
-	SOCKET ListenSocket = INVALID_SOCKET;
-	// Create a SOCKET for the server to listen for client connections
-	ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-	if (ListenSocket == INVALID_SOCKET)
+	NetIocpEngine netEngine;
+	NetEngineConfig netConfig{};
+	netConfig.bindAddr = bindAddr;
+	netConfig.port = static_cast<uint16_t>(netListenPort);
+	netConfig.backlog = netBacklog;
+	netConfig.iocpWorkerCount = iocpWorkerCount;
+	if (!netEngine.Start(netConfig))
 	{
-		printf("Error at socket(): %ld\n", WSAGetLastError());
-		freeaddrinfo(result);
+		std::cerr << "NetIocpEngine start failed" << std::endl;
 		WSACleanup();
 		return 1;
 	}
-
-	// Setup the TCP listening socket
-	iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
-	if (iResult == SOCKET_ERROR) {
-		printf("bind failed with error: %d\n", WSAGetLastError());
-		freeaddrinfo(result);
-		closesocket(ListenSocket);
-		WSACleanup();
-		return 1;
-	}
-	freeaddrinfo(result);
-
-	if (listen(ListenSocket, netBacklog) == SOCKET_ERROR)
-	{
-		printf("Listen failed with error: %ld\n", WSAGetLastError());
-		closesocket(ListenSocket);
-		WSACleanup();
-		return 1;
-	}
-
-	std::function<int(void)> listenJob = [ListenSocket]() -> int
-	{
-		SOCKET clientSocket = INVALID_SOCKET;
-		// Accept a client socket
-		clientSocket = accept(ListenSocket, NULL, NULL);
-		std::vector<std::thread> clientThreads{};
-		while (clientSocket != INVALID_SOCKET)
-		{
-			PlayerMgr::OnPlayerConnected(std::move(clientSocket));
-			clientSocket = accept(ListenSocket, NULL, NULL);
-		}
-		printf("accept failed: %d\n", WSAGetLastError());
-		closesocket(ListenSocket);
-		WSACleanup();
-		for (auto& t : clientThreads) t.join();
-		return 1;
-	};
-	std::thread netThread = std::thread(listenJob);
 
 	long long tickClock = tickLogIntervalMs;
+	std::vector<NetEvent> netEvents;
+	netEvents.reserve(128);
 	while (true)
 	{
 		tickClock += fixedTimeStepMs;
@@ -201,6 +167,10 @@ int main(int argc, char** argv)
 		long long duration = 0;
 		while (duration < fixedTimeStepMs)
 		{
+			netEvents.clear();
+			netEngine.DrainEvents(netEvents);
+			NetEventBridge::Dispatch(netEvents, &netEngine);
+
 			auto er = NetPackHandler::DoOneTask();
 			while (er != 1)
 			{

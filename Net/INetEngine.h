@@ -21,6 +21,7 @@ public:
 
 	virtual bool Start(const NetEngineConfig& config) = 0;
 	virtual void Stop() = 0;
+	virtual void Disconnect(NetConnId connId) = 0;
 
 	// Sends a full frame (including header) to the target connection.
 	virtual bool Send(NetConnId connId, const uint8_t* data, size_t len) = 0;
